@@ -5,10 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/constellation39/majsoul/message"
+	"github.com/constellation39/majsoul/utils"
 	"github.com/golang/protobuf/proto"
 	"log"
-	"majsoul/message"
-	"majsoul/utils"
 	"math/rand"
 	"time"
 )
@@ -39,6 +39,7 @@ type Majsoul struct {
 	IFReceive
 
 	*Config
+	Request  *utils.Request
 	Conn     *ClientConn
 	Game     *ClientConn
 	Version  *Version
@@ -52,6 +53,7 @@ func New(c *Config) *Majsoul {
 	majsoul := &Majsoul{
 		Ctx:         ctx,
 		Cancel:      cancel,
+		Request:     utils.NewRequest(c.ServerAddress),
 		LobbyClient: message.NewLobbyClient(cConn),
 		Config:      c,
 		Conn:        cConn,
@@ -91,7 +93,7 @@ func (v *Version) Web() string {
 func (majsoul *Majsoul) version() (*Version, error) {
 	// var version_url = "version.json?randv="+Math.floor(Math.random() * 1000000000).toString()+Math.floor(Math.random() * 1000000000).toString()
 	r := int(rand.Float32()*1000000000) + int(rand.Float32()*1000000000)
-	body, err := utils.Get(fmt.Sprintf("%s/1/version.json?randv=%d", majsoul.ServerAddress, r))
+	body, err := majsoul.Request.Get(fmt.Sprintf("%s/1/version.json?randv=%d", majsoul.ServerAddress, r))
 	if err != nil {
 		return nil, err
 	}

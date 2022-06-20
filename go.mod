@@ -1,4 +1,4 @@
-module majsoul
+module github.com/constellation39/majsoul
 
 go 1.18
 
