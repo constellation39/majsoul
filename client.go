@@ -113,10 +113,10 @@ func (c *ClientConn) Receive() <-chan proto.Message {
 func (c *ClientConn) Invoke(ctx context.Context, method string, in interface{}, out interface{}, opts ...grpc.CallOption) error {
 	tokens := strings.Split(method, "/")
 	api := strings.Join(tokens, ".")
-	return c.Send(api, in.(proto.Message), out.(proto.Message))
+	return c.Send(ctx, api, in.(proto.Message), out.(proto.Message))
 }
 
-func (c *ClientConn) Send(api string, in proto.Message, out proto.Message) error {
+func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out proto.Message) error {
 	body, err := proto.Marshal(in.(proto.Message))
 	if err != nil {
 		return err
@@ -154,7 +154,12 @@ func (c *ClientConn) Send(api string, in proto.Message, out proto.Message) error
 	defer c.replys.Delete(c.msgIndex)
 
 	c.msgIndex++
-	<-reply.wait
+
+	select {
+	case <-reply.wait:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	return nil
 }
 

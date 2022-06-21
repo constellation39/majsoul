@@ -5,6 +5,7 @@ import (
 	"log"
 )
 
+// GetNotifyType 通过api名字返回具体的结构类型
 func GetNotifyType(name string) (ret proto.Message) {
 	switch name {
 	case ".lq.NotifyCaptcha":
@@ -175,6 +176,7 @@ func GetNotifyType(name string) (ret proto.Message) {
 	return
 }
 
+// GetActionType 通过api名字返回具体的结构体类型
 func GetActionType(name string) (ret proto.Message) {
 	switch name {
 	case "ActionMJStart":

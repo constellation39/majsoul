@@ -2,10 +2,10 @@ package majsoul
 
 import "github.com/constellation39/majsoul/message"
 
-// IFReceive
+// IFNotify
 // 雀魂proto协议中缺少描述监听消息的接口
 // 故添加该接口，可能会丢失某些api
-type IFReceive interface {
+type IFNotify interface {
 	NotifyCaptcha(notify *message.NotifyCaptcha)
 	NotifyRoomGameStart(notify *message.NotifyRoomGameStart)
 	NotifyMatchGameStart(notify *message.NotifyMatchGameStart)
