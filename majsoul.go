@@ -17,13 +17,17 @@ const (
 	MsgTypeNotify   uint8 = 1
 	MsgTypeRequest  uint8 = 2
 	MsgTypeResponse uint8 = 3
+
+	charSet = "0123456789abcdefghijklmnopqrstuvwxyz"
 )
 
 // Config majsoul server config
 type Config struct {
+	path           string
 	ServerAddress  string `json:"serverAddress"`
 	GatewayAddress string `json:"gatewayAddress"`
 	GameAddress    string `json:"gameAddress"`
+	Uuid           string `json:"uuid"`
 }
 
 // Majsoul majsoul client
@@ -31,20 +35,22 @@ type Majsoul struct {
 	Ctx    context.Context
 	Cancel context.CancelFunc
 
-	// message.LobbyClient 更多时候在大厅时调用的是该接口
-	message.LobbyClient
-	// message.GameClient 更多时候在游戏时调用的是该接口
-	message.FastTestClient
-	// IFReceive majsoul 的通知下发接口，游戏内外皆在此接口下发
-	IFReceive
+	message.LobbyClient             // message.LobbyClient 更多时候在大厅时调用的是该接口
+	LobbyConn           *ClientConn // LobbyConn 是 message.LobbyClient 使用的连接
+
+	message.FastTestClient             // message.FastTestClient 场景处于游戏桌面时调用该接口
+	FastTestConn           *ClientConn // FastTestConn 是 message.FastTestClient 使用的连接
+
+	IFReceive // IFReceive majsoul 的通知下发接口，游戏内外皆在此接口下发
 
 	*Config
-	Request  *utils.Request
-	Conn     *ClientConn
-	Game     *ClientConn
-	Version  *Version
-	Account  *message.Account
-	GameInfo *message.ResAuthGame
+
+	Request *utils.Request // 用于直接向http(s)请求
+
+	// 未导出
+	version  *Version
+	account  *message.Account
+	gameInfo *message.ResAuthGame
 }
 
 func New(c *Config) *Majsoul {
@@ -56,24 +62,25 @@ func New(c *Config) *Majsoul {
 		Request:     utils.NewRequest(c.ServerAddress),
 		LobbyClient: message.NewLobbyClient(cConn),
 		Config:      c,
-		Conn:        cConn,
+		LobbyConn:   cConn,
 	}
 	majsoul.IFReceive = majsoul
 	majsoul.init()
 	go majsoul.heatbeat()
+	go majsoul.checkNetworkDelay()
 	go majsoul.receiveConn()
 	return majsoul
 }
 
 func (majsoul *Majsoul) init() {
 	var err error
-	majsoul.Version, err = majsoul.version()
+	majsoul.version, err = majsoul.Version()
 
 	if err != nil {
 		log.Printf("Majsoul.init version error: %v \n", err)
 	}
 
-	log.Printf("Majsoul.init %s \n", majsoul.Version.Version)
+	log.Printf("Majsoul.init %s \n", majsoul.version.Version)
 }
 
 type Version struct {
@@ -90,10 +97,10 @@ func (v *Version) Web() string {
 }
 
 // Version server request version
-func (majsoul *Majsoul) version() (*Version, error) {
+func (majsoul *Majsoul) Version() (*Version, error) {
 	// var version_url = "version.json?randv="+Math.floor(Math.random() * 1000000000).toString()+Math.floor(Math.random() * 1000000000).toString()
 	r := int(rand.Float32()*1000000000) + int(rand.Float32()*1000000000)
-	body, err := majsoul.Request.Get(fmt.Sprintf("%s/1/version.json?randv=%d", majsoul.ServerAddress, r))
+	body, err := majsoul.Request.Get(fmt.Sprintf("1/version.json?randv=%d", r))
 	if err != nil {
 		return nil, err
 	}
@@ -107,26 +114,52 @@ func (majsoul *Majsoul) version() (*Version, error) {
 
 func (majsoul *Majsoul) heatbeat() {
 	t := time.NewTicker(time.Second * 3)
+loop:
 	for {
 		select {
 		case <-t.C:
+			if majsoul.FastTestConn != nil {
+				continue
+			}
 			_, err := majsoul.Heatbeat(majsoul.Ctx, &message.ReqHeatBeat{})
 			if err != nil {
 				fmt.Println("heatbeat error:", err)
 				return
 			}
+		case <-majsoul.Ctx.Done():
+			break loop
+		}
+	}
+}
+
+func (majsoul *Majsoul) checkNetworkDelay() {
+	t := time.NewTicker(time.Second * 2)
+loop:
+	for {
+		select {
+		case <-t.C:
+			if majsoul.FastTestConn == nil {
+				continue
+			}
+			_, err := majsoul.CheckNetworkDelay(majsoul.Ctx, &message.ReqCommon{})
+			if err != nil {
+				fmt.Println("checkNetworkDelay error:", err)
+				return
+			}
+		case <-majsoul.Ctx.Done():
+			break loop
 		}
 	}
 }
 
 func (majsoul *Majsoul) receiveConn() {
-	for data := range majsoul.Conn.Receive() {
+	for data := range majsoul.LobbyConn.Receive() {
 		majsoul.handleNotify(data)
 	}
 }
 
 func (majsoul *Majsoul) receiveGame() {
-	for data := range majsoul.Game.Receive() {
+	for data := range majsoul.FastTestConn.Receive() {
 		majsoul.handleNotify(data)
 	}
 }
@@ -300,7 +333,27 @@ func (majsoul *Majsoul) handleNotify(data proto.Message) {
 
 // message.LobbyClient
 
-func (majsoul *Majsoul) Login(username, password string) error {
+func uuid() string {
+	csl := len(charSet)
+	b := make([]byte, 16)
+	for i := 0; i < 36; i++ {
+		if i == 7 || i == 12 || i == 17 || i == 22 {
+			b[i] = '-'
+			continue
+		}
+		b[i] = charSet[rand.Intn(csl)]
+	}
+	return string(b)
+}
+
+func (majsoul *Majsoul) Login(username, password string) (*message.ResLogin, error) {
+	if majsoul.Config.Uuid == "" {
+		majsoul.Config.Uuid = uuid()
+		err := SaveConfig(majsoul.Config.path, majsoul.Config)
+		if err != nil {
+			return nil, err
+		}
+	}
 	loginRes, err := majsoul.LobbyClient.Login(majsoul.Ctx, &message.ReqLogin{
 		Account:   username,
 		Password:  Hash(password),
@@ -318,9 +371,9 @@ func (majsoul *Majsoul) Login(username, password string) error {
 			ScreenWidth:    914,
 			ScreenHeight:   1316,
 		},
-		RandomKey: "cfc35be-f519-4cbc-9765-c4c124cdc6a16",
+		RandomKey: majsoul.Config.Uuid,
 		ClientVersion: &message.ClientVersionInfo{
-			Resource: majsoul.Version.Version,
+			Resource: majsoul.version.Version,
 			Package:  "",
 		},
 		GenAccessToken:    true,
@@ -328,13 +381,13 @@ func (majsoul *Majsoul) Login(username, password string) error {
 		// 电话1 邮箱0
 		Type:                0,
 		Version:             0,
-		ClientVersionString: majsoul.Version.Web(),
+		ClientVersionString: majsoul.version.Web(),
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	majsoul.Account = loginRes.Account
-	return nil
+	majsoul.account = loginRes.Account
+	return loginRes, nil
 }
 
 // message.FastTestClient
@@ -344,12 +397,12 @@ func (majsoul *Majsoul) Login(username, password string) error {
 func (majsoul *Majsoul) NotifyCaptcha(notify *message.NotifyCaptcha) {
 }
 func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart) {
-	majsoul.Game = NewClientConn(majsoul.Ctx, majsoul.Config.GameAddress)
-	majsoul.FastTestClient = message.NewFastTestClient(majsoul.Game)
+	majsoul.FastTestConn = NewClientConn(majsoul.Ctx, majsoul.Config.GameAddress)
+	majsoul.FastTestClient = message.NewFastTestClient(majsoul.FastTestConn)
 	go majsoul.receiveGame()
 	var err error
-	majsoul.GameInfo, err = majsoul.AuthGame(majsoul.Ctx, &message.ReqAuthGame{
-		AccountId: majsoul.Account.AccountId,
+	majsoul.gameInfo, err = majsoul.AuthGame(majsoul.Ctx, &message.ReqAuthGame{
+		AccountId: majsoul.account.AccountId,
 		Token:     notify.ConnectToken,
 		GameUuid:  notify.GameUuid,
 	})
@@ -459,6 +512,7 @@ func (majsoul *Majsoul) NotifyGameBroadcast(notify *message.NotifyGameBroadcast)
 func (majsoul *Majsoul) NotifyGameEndResult(notify *message.NotifyGameEndResult) {
 }
 func (majsoul *Majsoul) NotifyGameTerminate(notify *message.NotifyGameTerminate) {
+	majsoul.FastTestConn = nil
 }
 func (majsoul *Majsoul) NotifyPlayerConnectionState(notify *message.NotifyPlayerConnectionState) {
 }

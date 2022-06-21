@@ -24,7 +24,26 @@ func Hash(data string) string {
 func LoadConfig(path string) (*Config, error) {
 	cfg := new(Config)
 	err := read(path, cfg)
+	cfg.path = path
 	return cfg, err
+}
+
+// SaveConfig loadFile config from file
+func SaveConfig(path string, in interface{}) error {
+	return saveFile(reflect.ValueOf(in), path)
+}
+
+// saveFile saveFile config to file
+func saveFile(vTarge reflect.Value, path string) error {
+	oTarge := vTarge.Type()
+	if oTarge.Elem().Kind() != reflect.Struct {
+		return errors.New("type of received parameter is not struct")
+	}
+	data, err := json.Marshal(vTarge.Interface())
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(path, data, 0644)
 }
 
 func exitsFile(path string) bool {

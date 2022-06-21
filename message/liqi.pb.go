@@ -3249,7 +3249,7 @@ func (x *Account) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Account.ProtoReflect.Descriptor instead.
+// Deprecated: Use account.ProtoReflect.Descriptor instead.
 func (*Account) Descriptor() ([]byte, []int) {
 	return file_liqi_proto_rawDescGZIP(), []int{54}
 }
@@ -55276,7 +55276,7 @@ var file_liqi_proto_goTypes = []interface{}{
 	(*AccountStatisticData)(nil),                                    // 52: lq.AccountStatisticData
 	(*AccountLevel)(nil),                                            // 53: lq.AccountLevel
 	(*ViewSlot)(nil),                                                // 54: lq.ViewSlot
-	(*Account)(nil),                                                 // 55: lq.Account
+	(*Account)(nil),                                                 // 55: lq.account
 	(*AccountOwnerData)(nil),                                        // 56: lq.AccountOwnerData
 	(*AccountUpdate)(nil),                                           // 57: lq.AccountUpdate
 	(*GameMetaData)(nil),                                            // 58: lq.GameMetaData
@@ -55843,10 +55843,10 @@ var file_liqi_proto_goTypes = []interface{}{
 	(*AccountMahjongStatistic_Liqi20Summary)(nil),                   // 619: lq.AccountMahjongStatistic.Liqi20Summary
 	(*AccountMahjongStatistic_LiQi10Summary)(nil),                   // 620: lq.AccountMahjongStatistic.LiQi10Summary
 	(*AccountMahjongStatistic_GameResult)(nil),                      // 621: lq.AccountMahjongStatistic.GameResult
-	(*Account_PlatformDiamond)(nil),                                 // 622: lq.Account.PlatformDiamond
-	(*Account_PlatformSkinTicket)(nil),                              // 623: lq.Account.PlatformSkinTicket
-	(*Account_ChallengeLevel)(nil),                                  // 624: lq.Account.ChallengeLevel
-	(*Account_AchievementCount)(nil),                                // 625: lq.Account.AchievementCount
+	(*Account_PlatformDiamond)(nil),                                 // 622: lq.account.PlatformDiamond
+	(*Account_PlatformSkinTicket)(nil),                              // 623: lq.account.PlatformSkinTicket
+	(*Account_ChallengeLevel)(nil),                                  // 624: lq.account.ChallengeLevel
+	(*Account_AchievementCount)(nil),                                // 625: lq.account.AchievementCount
 	(*AccountUpdate_NumericalUpdate)(nil),                           // 626: lq.AccountUpdate.NumericalUpdate
 	(*AccountUpdate_CharacterUpdate)(nil),                           // 627: lq.AccountUpdate.CharacterUpdate
 	(*AccountUpdate_AchievementUpdate)(nil),                         // 628: lq.AccountUpdate.AchievementUpdate
@@ -55986,13 +55986,13 @@ var file_liqi_proto_depIdxs = []int32{
 	620, // 39: lq.AccountMahjongStatistic.recent_10_hu_summary:type_name -> lq.AccountMahjongStatistic.LiQi10Summary
 	621, // 40: lq.AccountMahjongStatistic.recent_10_game_result:type_name -> lq.AccountMahjongStatistic.GameResult
 	51,  // 41: lq.AccountStatisticData.statistic:type_name -> lq.AccountMahjongStatistic
-	50,  // 42: lq.Account.anti_addiction:type_name -> lq.AntiAddiction
-	622, // 43: lq.Account.platform_diamond:type_name -> lq.Account.PlatformDiamond
-	53,  // 44: lq.Account.level:type_name -> lq.AccountLevel
-	53,  // 45: lq.Account.level3:type_name -> lq.AccountLevel
-	623, // 46: lq.Account.platform_skin_ticket:type_name -> lq.Account.PlatformSkinTicket
-	624, // 47: lq.Account.challenge_levels:type_name -> lq.Account.ChallengeLevel
-	625, // 48: lq.Account.achievement_count:type_name -> lq.Account.AchievementCount
+	50,  // 42: lq.account.anti_addiction:type_name -> lq.AntiAddiction
+	622, // 43: lq.account.platform_diamond:type_name -> lq.account.PlatformDiamond
+	53,  // 44: lq.account.level:type_name -> lq.AccountLevel
+	53,  // 45: lq.account.level3:type_name -> lq.AccountLevel
+	623, // 46: lq.account.platform_skin_ticket:type_name -> lq.account.PlatformSkinTicket
+	624, // 47: lq.account.challenge_levels:type_name -> lq.account.ChallengeLevel
+	625, // 48: lq.account.achievement_count:type_name -> lq.account.AchievementCount
 	626, // 49: lq.AccountUpdate.numerical:type_name -> lq.AccountUpdate.NumericalUpdate
 	627, // 50: lq.AccountUpdate.character:type_name -> lq.AccountUpdate.CharacterUpdate
 	75,  // 51: lq.AccountUpdate.bag:type_name -> lq.BagUpdate
@@ -56128,7 +56128,7 @@ var file_liqi_proto_depIdxs = []int32{
 	90,  // 181: lq.ReqLogin.device:type_name -> lq.ClientDeviceInfo
 	91,  // 182: lq.ReqLogin.client_version:type_name -> lq.ClientVersionInfo
 	44,  // 183: lq.ResLogin.error:type_name -> lq.Error
-	55,  // 184: lq.ResLogin.account:type_name -> lq.Account
+	55,  // 184: lq.ResLogin.account:type_name -> lq.account
 	69,  // 185: lq.ResLogin.game_info:type_name -> lq.GameConnectInfo
 	90,  // 186: lq.ReqEmailLogin.device:type_name -> lq.ClientDeviceInfo
 	44,  // 187: lq.ResVerfiyCodeForSecure.error:type_name -> lq.Error
@@ -56143,7 +56143,7 @@ var file_liqi_proto_depIdxs = []int32{
 	44,  // 196: lq.ResDMMPreLogin.error:type_name -> lq.Error
 	44,  // 197: lq.ResLogout.error:type_name -> lq.Error
 	44,  // 198: lq.ResAccountInfo.error:type_name -> lq.Error
-	55,  // 199: lq.ResAccountInfo.account:type_name -> lq.Account
+	55,  // 199: lq.ResAccountInfo.account:type_name -> lq.account
 	67,  // 200: lq.ResAccountInfo.room:type_name -> lq.Room
 	44,  // 201: lq.ResSelfRoom.error:type_name -> lq.Error
 	67,  // 202: lq.ResSelfRoom.room:type_name -> lq.Room

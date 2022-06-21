@@ -113,7 +113,10 @@ func (c *ClientConn) Receive() <-chan proto.Message {
 func (c *ClientConn) Invoke(ctx context.Context, method string, in interface{}, out interface{}, opts ...grpc.CallOption) error {
 	tokens := strings.Split(method, "/")
 	api := strings.Join(tokens, ".")
+	return c.Send(api, in.(proto.Message), out.(proto.Message))
+}
 
+func (c *ClientConn) Send(api string, in proto.Message, out proto.Message) error {
 	body, err := proto.Marshal(in.(proto.Message))
 	if err != nil {
 		return err
@@ -128,6 +131,7 @@ func (c *ClientConn) Invoke(ctx context.Context, method string, in interface{}, 
 	if err != nil {
 		return err
 	}
+
 	buff := new(bytes.Buffer)
 	c.msgIndex %= 255
 	buff.WriteByte(MsgTypeRequest)
@@ -135,7 +139,7 @@ func (c *ClientConn) Invoke(ctx context.Context, method string, in interface{}, 
 	buff.WriteByte(c.msgIndex >> 7)
 	buff.Write(body)
 
-	err = c.Send(buff.Bytes())
+	err = c.WSClient.Send(buff.Bytes())
 	if err != nil {
 		return err
 	}
@@ -151,7 +155,6 @@ func (c *ClientConn) Invoke(ctx context.Context, method string, in interface{}, 
 
 	c.msgIndex++
 	<-reply.wait
-
 	return nil
 }
 
