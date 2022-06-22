@@ -16,18 +16,13 @@ func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart)
 	majsoul.FastTestClient = message.NewFastTestClient(majsoul.FastTestConn)
 	go majsoul.receiveGame()
 	var err error
-	majsoul.gameInfo, err = majsoul.AuthGame(majsoul.Ctx, &message.ReqAuthGame{
-		AccountId: majsoul.account.AccountId,
+	majsoul.GameInfo, err = majsoul.AuthGame(majsoul.Ctx, &message.ReqAuthGame{
+		AccountId: majsoul.Account.AccountId,
 		Token:     notify.ConnectToken,
 		GameUuid:  notify.GameUuid,
 	})
 	if err != nil {
 		log.Printf("Majsoul.NotifyRoomGameStart AuthGame error: %v \n", err)
-		return
-	}
-	_, err = majsoul.CheckNetworkDelay(majsoul.Ctx, &message.ReqCommon{})
-	if err != nil {
-		log.Printf("Majsoul.NotifyRoomGameStart CheckNetworkDelay error: %v \n", err)
 		return
 	}
 	_, err = majsoul.EnterGame(majsoul.Ctx, &message.ReqCommon{})
@@ -276,6 +271,7 @@ func (majsoul *Majsoul) ActionPrototype(notify *message.ActionPrototype) {
 		log.Printf("ActionPrototype Unmarshal error: %v", err)
 		return
 	}
+	log.Printf("ActionPrototype: %v", notify.Name)
 	switch notify.Name {
 	case "ActionMJStart":
 		majsoul.Implement.ActionMJStart(data.(*message.ActionMJStart))

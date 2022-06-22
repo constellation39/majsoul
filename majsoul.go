@@ -65,9 +65,8 @@ type Majsoul struct {
 	Request *utils.Request // 用于直接向http(s)请求
 	Version *Version       // 初始化时获取的版本信息
 
-	// 未导出
-	account  *message.Account
-	gameInfo *message.ResAuthGame
+	Account  *message.Account     // 该字段应在登录成功后访问
+	GameInfo *message.ResAuthGame // 该字段应在进入游戏桌面后访问
 }
 
 func New(c *Config) *Majsoul {
@@ -82,8 +81,7 @@ func New(c *Config) *Majsoul {
 		LobbyConn:   cConn,
 	}
 	majsoul.init()
-	go majsoul.heatbeat()
-	go majsoul.checkNetworkDelay()
+	//go majsoul.heatbeat()
 	go majsoul.receiveConn()
 	return majsoul
 }
@@ -93,7 +91,7 @@ func (majsoul *Majsoul) init() {
 	majsoul.Version, err = majsoul.version()
 
 	if err != nil {
-		log.Printf("Majsoul.init version error: %v \n", err)
+		log.Fatalf("Majsoul.init version error: %v \n", err)
 	}
 
 	log.Printf("Majsoul.init %s \n", majsoul.Version.Version)
@@ -112,7 +110,6 @@ func (v *Version) Web() string {
 	return fmt.Sprintf("web-%s", v.Version[:len(v.Version)-2])
 }
 
-// Version server request version
 func (majsoul *Majsoul) version() (*Version, error) {
 	// var version_url = "version.json?randv="+Math.floor(Math.random() * 1000000000).toString()+Math.floor(Math.random() * 1000000000).toString()
 	r := int(rand.Float32()*1000000000) + int(rand.Float32()*1000000000)
@@ -129,11 +126,12 @@ func (majsoul *Majsoul) version() (*Version, error) {
 }
 
 func (majsoul *Majsoul) heatbeat() {
-	t := time.NewTicker(time.Second * 3)
+	t3 := time.NewTicker(time.Second * 3)
+	t2 := time.NewTicker(time.Second * 2)
 loop:
 	for {
 		select {
-		case <-t.C:
+		case <-t3.C:
 			if majsoul.FastTestConn != nil {
 				continue
 			}
@@ -142,18 +140,7 @@ loop:
 				fmt.Println("heatbeat error:", err)
 				return
 			}
-		case <-majsoul.Ctx.Done():
-			break loop
-		}
-	}
-}
-
-func (majsoul *Majsoul) checkNetworkDelay() {
-	t := time.NewTicker(time.Second * 2)
-loop:
-	for {
-		select {
-		case <-t.C:
+		case <-t2.C:
 			if majsoul.FastTestConn == nil {
 				continue
 			}
@@ -402,7 +389,7 @@ func (majsoul *Majsoul) Login(username, password string) (*message.ResLogin, err
 	if err != nil {
 		return nil, err
 	}
-	majsoul.account = loginRes.Account
+	majsoul.Account = loginRes.Account
 	return loginRes, nil
 }
 

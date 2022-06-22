@@ -103,6 +103,9 @@ func (c *ClientConn) handleResponse(msg []byte) {
 		log.Printf("ClientConn.handleResponse unmarshal error: %v \n", err)
 		return
 	}
+	defer func() {
+		log.Printf("ClientConn.handleResponse close %d \n", key)
+	}()
 	close(reply.wait)
 }
 
@@ -151,7 +154,10 @@ func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out
 	if _, ok := c.replys.LoadOrStore(c.msgIndex, reply); ok {
 		return fmt.Errorf("index exists %d", c.msgIndex)
 	}
-	defer c.replys.Delete(c.msgIndex)
+	defer func(msgIndex uint8) {
+		c.replys.Delete(msgIndex)
+		log.Printf("ClientConn.Send delete index %d \n", msgIndex)
+	}(c.msgIndex)
 
 	c.msgIndex++
 
