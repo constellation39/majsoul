@@ -1,23 +1,55 @@
-package main
+# majsoul
 
-import (
-	"encoding/json"
-	"log"
-	"time"
+## [majsoul](https://game.maj-soul.com/1) 的客户端通信协议Go实现
 
-	"github.com/constellation39/majsoul"
-	"github.com/constellation39/majsoul/message"
-)
+尽力保留了Go强类型的优势，使用grpc生成了向majsoul服务器请求的通信协议，但是对于majsoul服务器进行的消息的下发处理使用了更加原始的方式。
 
-// Majsoul 组合库中的 Majsoul 结构
-type Majsoul struct {
-	*majsoul.Majsoul
-	seat  uint32
-	tiles []string
+> current liqi.proto version v0.10.103.w
+
+### 安装
+
+go get -u github.com/constellation39/majsoul
+
+## 示例
+
+### 向服务器发送消息
+```go
+// 读取配置文件，该文件声明了 majsoul 应该连接的服务器地址
+config, err := majsoul.LoadConfig("majsoul.json")
+if err != nil {
+	log.Fatal(err)
 }
 
-// NewMajsoul 创建一个 Majsoul 结构
-func NewMajsoul() *Majsoul {
+mSoul := majsoul.New(config)
+
+resLogin, err := mSoul.Login("account", "password")
+if err != nil {
+	log.Fatal(err)
+}
+if resLogin.Error != nil {
+	log.Fatal(resLogin.Error)
+}
+
+log.Printf("登录成功")
+
+friendList, err := mSoul.FetchFriendList(mSoul.Ctx, &message.ReqCommon{})
+if err != nil {
+    log.Fatal(err)
+}
+
+log.Printf("好友列表: %+v", friendList)
+```
+
+### 获取服务器下发消息
+```go
+
+// 首先继承该包的majsoul.Majsoul，然后实现需要监听的方法
+type ImplementMajsoul struct {
+	*majsoul.Majsoul
+}
+
+// NewImplementMajsoul 创建一个 ImplementMajsoul 结构
+func NewImplementMajsoul() *ImplementMajsoul {
 	config, err := majsoul.LoadConfig("majsoul.json")
 	if err != nil {
 		log.Fatal(err)
@@ -27,50 +59,12 @@ func NewMajsoul() *Majsoul {
 	return mSoul
 }
 
-func main() {
-	mSoul := NewMajsoul()
-	resLogin, err := mSoul.Login("", "")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if resLogin.Error != nil {
-		log.Fatal(resLogin.Error)
-	}
+// 以下是在游戏大厅内消息，对应函数在 majsoul/inotify.go 中由 IFNotify 接口定义
 
-	// 检查是否在游戏中
-	if resLogin.Account.RoomId != 0 {
-		log.Println("在游戏中")
-	}
-
-	friendList, err := mSoul.FetchFriendList(mSoul.Ctx, &message.ReqCommon{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Printf("好友列表: %+v", friendList)
-
-	select {
-	case <-mSoul.Ctx.Done():
-	}
-}
-
-func (mSoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart) {
-	log.Printf("NotifyRoomGameStart %+v", notify)
-	mSoul.Majsoul.NotifyRoomGameStart(notify)
-
-	// 记录自己的座位号
-	for i, uid := range mSoul.GameInfo.SeatList {
-		if uid == mSoul.Account.AccountId {
-			mSoul.seat = uint32(i)
-			break
-		}
-	}
-}
-
-// NotifyClientMessage 客户端消息
+// NotifyClientMessage 实现对应客户端消息
 // message.NotifyClientMessage filed Type == 1 时为受到邀请
 // note: 这个函数的只实现了接受到邀请的通知
-func (mSoul *Majsoul) NotifyClientMessage(notify *message.NotifyClientMessage) {
+func (mSoul *ImplementMajsoul) NotifyClientMessage(notify *message.NotifyClientMessage) {
 	type DetailRule struct {
 		TimeFixed    int  `json:"time_fixed"`
 		TimeAdd      int  `json:"time_add"`
@@ -127,11 +121,14 @@ func (mSoul *Majsoul) NotifyClientMessage(notify *message.NotifyClientMessage) {
 
 // NotifyEndGameVote 有人发起投降
 func (mSoul *Majsoul) NotifyEndGameVote(notify *message.NotifyEndGameVote) {
+    // 同意
 	_, err := mSoul.VoteGameEnd(mSoul.Ctx, &message.ReqVoteGameEnd{Yes: true})
 	if err != nil {
 		log.Fatal(err)
 	}
 }
+
+// 以下是游戏桌面消息，对应函数在 majsoul/iaction.go 中由 IFAction 接口定义
 
 // ActionNewRound 回合开始
 func (mSoul *Majsoul) ActionNewRound(action *message.ActionNewRound) {
@@ -194,3 +191,7 @@ func (mSoul *Majsoul) ActionDiscardTile(action *message.ActionDiscardTile) {
 func (mSoul *Majsoul) ActionChiPengGang(action *message.ActionChiPengGang) {
 	log.Printf("ActionChiPengGang %+v", action)
 }
+
+```
+
+完整的示例文件在 [example](https://github.com/constellation39/majsoul/tree/master/example) 文件中
