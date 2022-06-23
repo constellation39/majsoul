@@ -2,7 +2,7 @@
 
 ## [majsoul](https://game.maj-soul.com/1) 的客户端通信协议Go实现
 
-尽力保留了Go强类型的优势，使用grpc生成了向majsoul服务器请求的通信协议，但是对于majsoul服务器进行的消息的下发处理使用了更加原始的方式。
+使用grpc生成了向majsoul服务器请求的通信协议，但是对于majsoul服务器的消息下发使用了更加原始的处理方式。
 
 > current liqi.proto version v0.10.103.w
 
