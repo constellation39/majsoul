@@ -8,7 +8,9 @@
 
 ### 安装
 
+```
 go get -u github.com/constellation39/majsoul
+```
 
 ## 示例
 
