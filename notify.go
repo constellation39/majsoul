@@ -1,9 +1,10 @@
 package majsoul
 
 import (
+	"log"
+
 	"github.com/constellation39/majsoul/message"
 	"github.com/golang/protobuf/proto"
-	"log"
 )
 
 // IFNotify is the interface that must be implemented by a receiver.
@@ -264,6 +265,10 @@ func (majsoul *Majsoul) NotifyLeaderboardPoint_LeaderboardPoint(notify *message.
 func (majsoul *Majsoul) NotifyEndGameVote_VoteResult(notify *message.NotifyEndGameVote_VoteResult) {
 }
 
+func (majsoul *Majsoul) PlayerLeaving(notify *message.PlayerLeaving) {
+
+}
+
 func (majsoul *Majsoul) ActionPrototype(notify *message.ActionPrototype) {
 	data := message.GetActionType(notify.Name)
 	err := proto.Unmarshal(notify.Data, data)
@@ -271,7 +276,6 @@ func (majsoul *Majsoul) ActionPrototype(notify *message.ActionPrototype) {
 		log.Printf("ActionPrototype Unmarshal error: %v", err)
 		return
 	}
-	log.Printf("ActionPrototype: %v", notify.Name)
 	switch notify.Name {
 	case "ActionMJStart":
 		majsoul.Implement.ActionMJStart(data.(*message.ActionMJStart))

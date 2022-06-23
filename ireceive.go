@@ -85,5 +85,6 @@ type IFNotify interface {
 	NotifyActivityPoint_ActivityPoint(notify *message.NotifyActivityPoint_ActivityPoint)
 	NotifyLeaderboardPoint_LeaderboardPoint(notify *message.NotifyLeaderboardPoint_LeaderboardPoint)
 	NotifyEndGameVote_VoteResult(notify *message.NotifyEndGameVote_VoteResult)
+	PlayerLeaving(notify *message.PlayerLeaving)
 	ActionPrototype(notify *message.ActionPrototype)
 }

@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/constellation39/majsoul/message"
-	"github.com/constellation39/majsoul/utils"
-	"github.com/golang/protobuf/proto"
 	"log"
 	"math/rand"
 	"time"
+
+	"github.com/constellation39/majsoul/message"
+	"github.com/constellation39/majsoul/utils"
+	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -327,6 +328,8 @@ func (majsoul *Majsoul) handleNotify(data proto.Message) {
 		majsoul.Implement.NotifyLeaderboardPoint_LeaderboardPoint(notify)
 	case *message.NotifyEndGameVote_VoteResult:
 		majsoul.Implement.NotifyEndGameVote_VoteResult(notify)
+	case *message.PlayerLeaving:
+		majsoul.Implement.PlayerLeaving(notify)
 	case *message.ActionPrototype:
 		majsoul.Implement.ActionPrototype(notify)
 	default:
