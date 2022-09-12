@@ -1097,6 +1097,7 @@ message RPGActivity {
     RPGState current_state = 7;
     RPGState last_show_state = 8;
     repeated uint32 received_rewards = 9;
+    uint32 last_show_id = 10;
 }
 
 message ActivityArenaData {
@@ -1159,6 +1160,7 @@ message AccountActivityUpdate {
     repeated lq.MineActivityData mine_data = 1;
     repeated lq.RPGActivity rpg_data = 2;
     repeated ActivityFeedData feed_data = 3;
+    repeated lq.ActivitySpotData spot_data = 4;
 }
 
 message ActivityFeedData {
@@ -1184,6 +1186,19 @@ message ActivityFeedData {
         uint32 from_account_id = 4;
         uint32 time = 5;
         uint32 received = 6;
+    }
+}
+
+message ActivitySpotData {
+
+    uint32 activity_id = 1;
+    repeated SpotData spots = 3;
+
+    message SpotData {
+
+        uint32 unique_id = 1;
+        uint32 rewarded = 2;
+        repeated uint32 unlocked_ending = 3;
     }
 }
 
@@ -1736,6 +1751,10 @@ message ContestDetailRule {
     bool disable_multi_yukaman = 40;
     uint32 guyi_mode = 41;
     bool disable_leijiyiman = 42;
+    uint32 dora3_mode = 43;
+    uint32 xuezhandaodi = 44;
+    uint32 huansanzhang = 45;
+    uint32 chuanma = 46;
 }
 
 message ContestDetailRuleV2 {
@@ -1804,6 +1823,7 @@ message RecordHuleInfo {
     bool is_jue_zhang = 19;
     uint32 xun = 20;
     uint32 ting_type = 21;
+    uint32 ting_mian = 22;
 
     message RecordFanInfo {
 
@@ -1883,6 +1903,19 @@ message RecordRoundInfo {
 message RecordAnalysisedData {
 
     repeated RecordRoundInfo round_infos = 1;
+}
+
+message VoteData {
+
+    uint32 activity_id = 1;
+    uint32 vote = 2;
+    uint32 count = 3;
+}
+
+message ActivityBuffData {
+
+    uint32 buff_id = 1;
+    uint32 level = 5;
 }
 service Lobby {
     rpc fetchConnectionInfo (ReqCommon) returns (ResConnectionInfo);
@@ -2128,7 +2161,9 @@ service Lobby {
     rpc checkPrivacy (ReqCheckPrivacy) returns (ResCommon);
     rpc responseCaptcha (ReqResponseCaptcha) returns (ResCommon);
     rpc fetchRPGBattleHistory (ReqFetchRPGBattleHistory) returns (ResFetchRPGBattleHistory);
+    rpc fetchRPGBattleHistoryV2 (ReqFetchRPGBattleHistory) returns (ResFetchRPGBattleHistoryV2);
     rpc receiveRPGRewards (ReqReceiveRPGRewards) returns (ResReceiveRPGRewards);
+    rpc receiveRPGReward (ReqReceiveRPGReward) returns (ResReceiveRPGRewards);
     rpc buyArenaTicket (ReqBuyArenaTicket) returns (ResCommon);
     rpc enterArena (ReqEnterArena) returns (ResCommon);
     rpc receiveArenaReward (ReqArenaReward) returns (ResArenaReward);
@@ -2139,6 +2174,13 @@ service Lobby {
     rpc receiveActivityGift (ReqReceiveActivityGift) returns (ResCommon);
     rpc fetchFriendFeedActivityData (ReqFetchFriendFeedActivityData) returns (ResFetchFriendFeedActivityData);
     rpc openPreChestItem (ReqOpenPreChestItem) returns (ResOpenPreChestItem);
+    rpc fetchVoteActivity (ReqFetchVoteActivity) returns (ResFetchVoteActivity);
+    rpc voteActivity (ReqVoteActivity) returns (ResVoteActivity);
+    rpc unlockActivitySpot (ReqUnlockActivitySpot) returns (ResCommon);
+    rpc receiveActivitySpotReward (ReqReceiveActivitySpotReward) returns (ResReceiveActivitySpotReward);
+    rpc deleteAccount (ReqCommon) returns (ResCommon);
+    rpc cancelDeleteAccount (ReqCommon) returns (ResCommon);
+    rpc logReport (ReqLogReport) returns (ResCommon);
 }
 
 message ResConnectionInfo {
@@ -3996,6 +4038,8 @@ message ResAccountActivityData {
     repeated lq.ActivityArenaData arena_data = 15;
     repeated lq.FeedActivityData feed_data = 16;
     repeated lq.SegmentTaskProgress segment_task_progress_list = 17;
+    repeated lq.VoteData vote_records = 18;
+    repeated lq.ActivitySpotData spot_data = 19;
 
     message ActivitySignInData {
 
@@ -4229,13 +4273,7 @@ message ResRefreshGameObserveAuth {
 message ResActivityBuff {
 
     Error error = 1;
-    repeated ActivityBuffData buff_list = 2;
-
-    message ActivityBuffData {
-
-        uint32 buff_id = 1;
-        uint32 level = 2;
-    }
+    repeated lq.ActivityBuffData buff_list = 2;
 }
 
 message ReqUpgradeActivityBuff {
@@ -4485,6 +4523,28 @@ message ResFetchRPGBattleHistory {
     }
 }
 
+message ResFetchRPGBattleHistoryV2 {
+
+    Error error = 1;
+    repeated BattleResultV2 battle_result = 2;
+    lq.RPGState start_state = 3;
+    lq.RPGState current_state = 4;
+    repeated BattleResultV2 recent_battle_result = 5;
+
+    message BattleResultV2 {
+
+        string uuid = 14;
+        uint32 chang = 1;
+        uint32 ju = 2;
+        uint32 ben = 3;
+        uint32 damage = 5;
+        uint32 monster_seq = 7;
+        uint32 killed = 9;
+        repeated lq.ActivityBuffData buff = 10;
+        uint32 points = 11;
+    }
+}
+
 message ReqBuyArenaTicket {
 
     uint32 activity_id = 1;
@@ -4515,6 +4575,12 @@ message ResArenaReward {
 message ReqReceiveRPGRewards {
 
     uint32 activity_id = 1;
+}
+
+message ReqReceiveRPGReward {
+
+    uint32 activity_id = 1;
+    uint32 monster_seq = 2;
 }
 
 message ResReceiveRPGRewards {
@@ -4634,6 +4700,59 @@ message ResOpenPreChestItem {
 
     Error error = 1;
     repeated OpenResult results = 2;
+}
+
+message ReqFetchVoteActivity {
+
+    uint32 activity_id = 1;
+}
+
+message ResFetchVoteActivity {
+
+    Error error = 1;
+    repeated uint32 vote_rank = 2;
+    uint32 update_time = 3;
+}
+
+message ReqVoteActivity {
+
+    uint32 vote = 1;
+    uint32 activity_id = 2;
+}
+
+message ResVoteActivity {
+
+    Error error = 1;
+    repeated VoteData vote_records = 2;
+}
+
+message ReqUnlockActivitySpot {
+
+    uint32 unique_id = 1;
+    uint32 ending_id = 2;
+}
+
+message ReqReceiveActivitySpotReward {
+
+    uint32 unique_id = 1;
+}
+
+message ResReceiveActivitySpotReward {
+
+    Error error = 1;
+    repeated RewardItem items = 2;
+
+    message RewardItem {
+
+        uint32 id = 1;
+        uint32 count = 2;
+    }
+}
+
+message ReqLogReport {
+
+    uint32 success = 1;
+    uint32 failed = 2;
 }
 
 message ActionMJStart {

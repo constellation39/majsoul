@@ -364,7 +364,7 @@ func uuid() string {
 	return string(b)
 }
 
-func (majsoul *Majsoul) Login(username, password string) (*message.ResLogin, error) {
+func (majsoul *Majsoul) Login(account, password string) (*message.ResLogin, error) {
 	if majsoul.UUID == "" {
 		majsoul.UUID = uuid()
 		err := utils.SaveFile(uuidFile, []byte(majsoul.UUID))
@@ -373,7 +373,7 @@ func (majsoul *Majsoul) Login(username, password string) (*message.ResLogin, err
 		}
 	}
 	loginRes, err := majsoul.LobbyClient.Login(majsoul.Ctx, &message.ReqLogin{
-		Account:   username,
+		Account:   account,
 		Password:  utils.Hash(password),
 		Reconnect: false,
 		Device: &message.ClientDeviceInfo{

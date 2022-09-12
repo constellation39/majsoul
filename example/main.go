@@ -29,7 +29,7 @@ func NewMajsoul() *Majsoul {
 
 func main() {
 	mSoul := NewMajsoul()
-	resLogin, err := mSoul.Login("1601198895@qq.com", "bahco39..")
+	resLogin, err := mSoul.Login("account", "password")
 	if err != nil {
 		log.Fatal(err)
 	}
