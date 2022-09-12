@@ -27,7 +27,7 @@ type Reply struct {
 	wait chan struct{}
 }
 
-func NewClientConn(ctx context.Context, addr string) *ClientConn {
+func NewClientConn(ctx context.Context, addr string) (*ClientConn, error) {
 	cConn := &ClientConn{
 		ctx:      ctx,
 		WSClient: utils.NewWSClient(addr),
@@ -35,10 +35,10 @@ func NewClientConn(ctx context.Context, addr string) *ClientConn {
 	}
 	err := cConn.WSClient.Connect()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	go cConn.loop()
-	return cConn
+	return cConn, nil
 }
 
 func (c *ClientConn) loop() {

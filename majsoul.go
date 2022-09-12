@@ -32,21 +32,13 @@ const (
 	Kita    = 11
 	Pass    = 12
 
-	charSet = "0123456789abcdefghijklmnopqrstuvwxyz"
+	charSet  = "0123456789abcdefghijklmnopqrstuvwxyz"
+	uuidFile = ".uuid"
 )
 
 type Implement interface {
 	IFNotify // IFNotify 大厅通知下发
 	IFAction // IFAction  游戏桌面内下发
-}
-
-// Config majsoul server config
-type Config struct {
-	path           string
-	ServerAddress  string `json:"serverAddress"`
-	GatewayAddress string `json:"gatewayAddress"`
-	GameAddress    string `json:"gameAddress"`
-	Uuid           string `json:"uuid"`
 }
 
 // Majsoul majsoul client
@@ -60,8 +52,9 @@ type Majsoul struct {
 	message.FastTestClient             // message.FastTestClient 场景处于游戏桌面时调用该接口
 	FastTestConn           *ClientConn // FastTestConn 是 message.FastTestClient 使用的连接
 
-	Implement // 使得程序可以以多态的方式调用 message.LobbyClient 或 message.FastTestClient 的接口
-	*Config   // 实例化时传入的配置
+	Implement     // 使得程序可以以多态的方式调用 message.LobbyClient 或 message.FastTestClient 的接口
+	UUID          string
+	ServerAddress *ServerAddress
 
 	Request *utils.Request // 用于直接向http(s)请求
 	Version *Version       // 初始化时获取的版本信息
@@ -70,21 +63,42 @@ type Majsoul struct {
 	GameInfo *message.ResAuthGame // 该字段应在进入游戏桌面后访问
 }
 
-func New(c *Config) *Majsoul {
+func New() (*Majsoul, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	cConn := NewClientConn(ctx, c.GatewayAddress)
+	serverAddress, request, cConn, err := lookup(ctx)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 	majsoul := &Majsoul{
-		Ctx:         ctx,
-		Cancel:      cancel,
-		Request:     utils.NewRequest(c.ServerAddress),
-		LobbyClient: message.NewLobbyClient(cConn),
-		Config:      c,
-		LobbyConn:   cConn,
+		Ctx:           ctx,
+		Cancel:        cancel,
+		Request:       request,
+		ServerAddress: serverAddress,
+		LobbyClient:   message.NewLobbyClient(cConn),
+		LobbyConn:     cConn,
 	}
 	majsoul.init()
-	//go majsoul.heatbeat()
+	go majsoul.heatbeat()
 	go majsoul.receiveConn()
-	return majsoul
+	return majsoul, nil
+}
+
+func lookup(ctx context.Context) (*ServerAddress, *utils.Request, *ClientConn, error) {
+	for _, serverAddress := range ServerAddressList {
+		request := utils.NewRequest(serverAddress.ServerAddress)
+		r := int(rand.Float32()*1000000000) + int(rand.Float32()*1000000000)
+		_, err := request.Get(fmt.Sprintf("1/version.json?randv=%d", r))
+		if err != nil {
+			continue
+		}
+		cConn, err := NewClientConn(ctx, serverAddress.GatewayAddress)
+		if err != nil {
+			continue
+		}
+		return serverAddress, request, cConn, nil
+	}
+	return nil, nil, nil, fmt.Errorf("no servers were found that could be used")
 }
 
 func (majsoul *Majsoul) init() {
@@ -94,8 +108,6 @@ func (majsoul *Majsoul) init() {
 	if err != nil {
 		log.Fatalf("Majsoul.init version error: %v \n", err)
 	}
-
-	log.Printf("Majsoul.init %s \n", majsoul.Version.Version)
 }
 
 type Version struct {
@@ -353,16 +365,16 @@ func uuid() string {
 }
 
 func (majsoul *Majsoul) Login(username, password string) (*message.ResLogin, error) {
-	if majsoul.Config.Uuid == "" {
-		majsoul.Config.Uuid = uuid()
-		err := SaveConfig(majsoul.Config.path, majsoul.Config)
+	if majsoul.UUID == "" {
+		majsoul.UUID = uuid()
+		err := utils.SaveFile(uuidFile, []byte(majsoul.UUID))
 		if err != nil {
 			return nil, err
 		}
 	}
 	loginRes, err := majsoul.LobbyClient.Login(majsoul.Ctx, &message.ReqLogin{
 		Account:   username,
-		Password:  Hash(password),
+		Password:  utils.Hash(password),
 		Reconnect: false,
 		Device: &message.ClientDeviceInfo{
 			Platform:       "pc",
@@ -377,7 +389,7 @@ func (majsoul *Majsoul) Login(username, password string) (*message.ResLogin, err
 			ScreenWidth:    914,
 			ScreenHeight:   1316,
 		},
-		RandomKey: majsoul.Config.Uuid,
+		RandomKey: majsoul.UUID,
 		ClientVersion: &message.ClientVersionInfo{
 			Resource: majsoul.Version.Version,
 			Package:  "",

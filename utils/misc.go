@@ -1,4 +1,4 @@
-package majsoul
+package utils
 
 import (
 	"crypto/hmac"
@@ -20,50 +20,46 @@ func Hash(data string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-// LoadConfig loadFile config from file
-func LoadConfig(path string) (*Config, error) {
-	cfg := new(Config)
-	err := read(path, cfg)
-	cfg.path = path
-	return cfg, err
+// Save LoadFile config from file
+func Save(path string, in interface{}) error {
+	return SaveStruct(path, reflect.ValueOf(in))
 }
 
-// SaveConfig loadFile config from file
-func SaveConfig(path string, in interface{}) error {
-	return saveFile(reflect.ValueOf(in), path)
-}
-
-// saveFile saveFile config to file
-func saveFile(vTarge reflect.Value, path string) error {
-	oTarge := vTarge.Type()
-	if oTarge.Elem().Kind() != reflect.Struct {
+func SaveStruct(path string, vTarget reflect.Value) error {
+	oTarget := vTarget.Type()
+	if oTarget.Elem().Kind() != reflect.Struct {
 		return errors.New("type of received parameter is not struct")
 	}
-	data, err := json.Marshal(vTarge.Interface())
+	data, err := json.Marshal(vTarget.Interface())
 	if err != nil {
 		return err
 	}
+	return SaveFile(path, data)
+}
+
+// SaveFile SaveFile config to file
+func SaveFile(path string, data []byte) error {
 	return ioutil.WriteFile(path, data, 0644)
 }
 
-func exitsFile(path string) bool {
+func ExitsFile(path string) bool {
 	_, err := os.Stat(path)
 	return os.IsExist(err)
 }
 
-func read(path string, data interface{}) error {
-	if exitsFile(path) {
+func Read(path string, data interface{}) error {
+	if ExitsFile(path) {
 		return fmt.Errorf("open %s error: File does not exist", path)
 	}
-	return loadFile(reflect.ValueOf(data), path)
+	return LoadStruct(reflect.ValueOf(data), path)
 }
 
-func loadFile(vTarge reflect.Value, path string) error {
+func LoadStruct(vTarge reflect.Value, path string) error {
 	oTarge := vTarge.Type()
 	if oTarge.Elem().Kind() != reflect.Struct {
 		return errors.New("type of received parameter is not struct")
 	}
-	data, err := ioutil.ReadFile(path)
+	data, err := LoadFile(path)
 	if err != nil {
 		return err
 	}
@@ -72,4 +68,8 @@ func loadFile(vTarge reflect.Value, path string) error {
 		return err
 	}
 	return nil
+}
+
+func LoadFile(path string) ([]byte, error) {
+	return ioutil.ReadFile(path)
 }

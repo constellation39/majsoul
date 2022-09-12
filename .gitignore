@@ -18,3 +18,4 @@
 *.linux
 record/
 main/
+.uuid

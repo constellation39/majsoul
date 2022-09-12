@@ -13,10 +13,14 @@ func (majsoul *Majsoul) NotifyCaptcha(notify *message.NotifyCaptcha) {
 }
 
 func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart) {
-	majsoul.FastTestConn = NewClientConn(majsoul.Ctx, majsoul.Config.GameAddress)
+	var err error
+	majsoul.FastTestConn, err = NewClientConn(majsoul.Ctx, majsoul.ServerAddress.GameAddress)
+	if err != nil {
+		log.Fatalf("Majsoul.NotifyRoomGameStart Connect to GameServer failed %s", majsoul.ServerAddress.GatewayAddress)
+		return
+	}
 	majsoul.FastTestClient = message.NewFastTestClient(majsoul.FastTestConn)
 	go majsoul.receiveGame()
-	var err error
 	majsoul.GameInfo, err = majsoul.AuthGame(majsoul.Ctx, &message.ReqAuthGame{
 		AccountId: majsoul.Account.AccountId,
 		Token:     notify.ConnectToken,

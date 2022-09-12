@@ -1,6 +1,0 @@
-{
-  "serverAddress": "https://game.maj-soul.com",
-  "gatewayAddress": "wss://gateway-hw.maj-soul.com/gateway",
-  "gameAddress": "wss://gateway-hw.maj-soul.com/game-gateway",
-  "uuid": "bbd6p84-oe7u-t4qr-tteb-iwar77s63donn"
-}

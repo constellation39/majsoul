@@ -46425,7 +46425,7 @@ type ReqCheckPrivacy_Versions struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Version string `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Version string `protobuf:"bytes,1,opt,name=version,proto3" json:"version.txt,omitempty"`
 	Type    uint32 `protobuf:"varint,3,opt,name=type,proto3" json:"type,omitempty"`
 }
 

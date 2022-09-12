@@ -18,18 +18,18 @@ type Majsoul struct {
 
 // NewMajsoul 创建一个 Majsoul 结构
 func NewMajsoul() *Majsoul {
-	config, err := majsoul.LoadConfig("majsoul.json")
+	mj, err := majsoul.New()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-	mSoul := &Majsoul{Majsoul: majsoul.New(config)}
+	mSoul := &Majsoul{Majsoul: mj}
 	mSoul.Implement = mSoul // 使用多态实现，如果调用时没有提供外部实现则调用内部的实现，如果没有给 Implement 赋值，则只会调用内部实现
 	return mSoul
 }
 
 func main() {
 	mSoul := NewMajsoul()
-	resLogin, err := mSoul.Login("", "")
+	resLogin, err := mSoul.Login("1601198895@qq.com", "bahco39..")
 	if err != nil {
 		log.Fatal(err)
 	}
