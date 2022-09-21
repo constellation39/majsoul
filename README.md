@@ -16,13 +16,10 @@ go get -u github.com/constellation39/majsoul
 
 ### 向服务器发送消息
 ```go
-// 读取配置文件，该文件声明了 majsoul 应该连接的服务器地址
-config, err := majsoul.LoadConfig("majsoul.json")
+mSoul, err := majsoul.New()
 if err != nil {
-	log.Fatal(err)
+    panic(err)
 }
-
-mSoul := majsoul.New(config)
 
 resLogin, err := mSoul.Login("account", "password")
 if err != nil {
