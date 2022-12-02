@@ -273,8 +273,18 @@ func (majsoul *Majsoul) PlayerLeaving(notify *message.PlayerLeaving) {
 
 }
 
+var keys = []int{0x84, 0x5e, 0x4e, 0x42, 0x39, 0xa2, 0x1f, 0x60, 0x1c}
+
+func decode(data []byte) {
+	for i := 0; i < len(data); i++ {
+		u := (23 ^ len(data)) + 5*i + keys[i%len(keys)]&255
+		data[i] ^= byte(u)
+	}
+}
+
 func (majsoul *Majsoul) ActionPrototype(notify *message.ActionPrototype) {
 	data := message.GetActionType(notify.Name)
+	decode(notify.Data)
 	err := proto.Unmarshal(notify.Data, data)
 	if err != nil {
 		log.Printf("ActionPrototype Unmarshal error: %v", err)
