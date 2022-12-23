@@ -775,6 +775,7 @@ message GameDetailRule {
     uint32 chuanma = 50;
     uint32 reveal_discard = 51;
     uint32 field_spell_mode = 52;
+    uint32 zhanxing = 53;
     bool disable_leijiyiman = 60;
 }
 
@@ -1401,6 +1402,7 @@ message PaymentSettingV2 {
         string goods_click_text = 4;
         PaymentMaintain maintain = 5;
         bool enable_for_frozen_account = 6;
+        string extra_data = 7;
     }
 }
 
@@ -1507,6 +1509,7 @@ message CustomizedContestDetail {
     uint32 observer_switch = 13;
     uint32 emoji_switch = 14;
     uint32 contest_type = 15;
+    uint32 disable_broadcast = 16;
 }
 
 message CustomizedContestPlayerReport {
@@ -2076,11 +2079,18 @@ service Lobby {
     rpc createJPDocomoOrder (ReqCreateJPDocomoOrder) returns (ResCreateJPDocomoOrder);
     rpc createJPWebMoneyOrder (ReqCreateJPWebMoneyOrder) returns (ResCreateJPWebMoneyOrder);
     rpc createJPSoftbankOrder (ReqCreateJPSoftbankOrder) returns (ResCreateJPSoftbankOrder);
+    rpc createJPPayPayOrder (ReqCreateJPPayPayOrder) returns (ResCreateJPPayPayOrder);
+    rpc fetchJPCommonOrder (ReqFetchJPCommonOrder) returns (ResFetchJPCommonOrder);
     rpc createENPaypalOrder (ReqCreateENPaypalOrder) returns (ResCreateENPaypalOrder);
     rpc createENMasterCardOrder (ReqCreateENMasterCardOrder) returns (ResCreateENMasterCardOrder);
     rpc createENVisaOrder (ReqCreateENVisaOrder) returns (ResCreateENVisaOrder);
     rpc createENJCBOrder (ReqCreateENJCBOrder) returns (ResCreateENJCBOrder);
     rpc createENAlipayOrder (ReqCreateENAlipayOrder) returns (ResCreateENAlipayOrder);
+    rpc createKRPaypalOrder (ReqCreateKRPaypalOrder) returns (ResCreateKRPaypalOrder);
+    rpc createKRMasterCardOrder (ReqCreateKRMasterCardOrder) returns (ResCreateKRMasterCardOrder);
+    rpc createKRVisaOrder (ReqCreateKRVisaOrder) returns (ResCreateKRVisaOrder);
+    rpc createKRJCBOrder (ReqCreateKRJCBOrder) returns (ResCreateKRJCBOrder);
+    rpc createKRAlipayOrder (ReqCreateKRAlipayOrder) returns (ResCreateKRAlipayOrder);
     rpc createDMMOrder (ReqCreateDMMOrder) returns (ResCreateDmmOrder);
     rpc createIAPOrder (ReqCreateIAPOrder) returns (ResCreateIAPOrder);
     rpc createSteamOrder (ReqCreateSteamOrder) returns (ResCreateSteamOrder);
@@ -2178,9 +2188,11 @@ service Lobby {
     rpc voteActivity (ReqVoteActivity) returns (ResVoteActivity);
     rpc unlockActivitySpot (ReqUnlockActivitySpot) returns (ResCommon);
     rpc receiveActivitySpotReward (ReqReceiveActivitySpotReward) returns (ResReceiveActivitySpotReward);
-    rpc deleteAccount (ReqCommon) returns (ResCommon);
+    rpc deleteAccount (ReqCommon) returns (ResDeleteAccount);
     rpc cancelDeleteAccount (ReqCommon) returns (ResCommon);
     rpc logReport (ReqLogReport) returns (ResCommon);
+    rpc bindOauth2 (ReqBindOauth2) returns (ResCommon);
+    rpc fetchOauth2Info (ReqFetchOauth2) returns (ResFetchOauth2);
 }
 
 message ResConnectionInfo {
@@ -3123,6 +3135,7 @@ message ReqCreateBillingOrder {
     uint32 payment_platform = 2;
     uint32 client_type = 3;
     uint32 account_id = 4;
+    string client_version_string = 5;
 }
 
 message ResCreateBillingOrder {
@@ -3156,6 +3169,7 @@ message ReqCreateWechatNativeOrder {
     uint32 client_type = 2;
     uint32 account_id = 3;
     string account_ip = 4;
+    string client_version_string = 5;
 }
 
 message ResCreateWechatNativeOrder {
@@ -3171,6 +3185,7 @@ message ReqCreateWechatAppOrder {
     uint32 client_type = 2;
     uint32 account_id = 3;
     string account_ip = 4;
+    string client_version_string = 5;
 }
 
 message ResCreateWechatAppOrder {
@@ -3197,6 +3212,7 @@ message ReqCreateAlipayOrder {
     uint32 account_id = 3;
     string alipay_trade_type = 4;
     string return_url = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateAlipayOrder {
@@ -3210,6 +3226,7 @@ message ReqCreateAlipayScanOrder {
     uint32 goods_id = 1;
     uint32 client_type = 2;
     uint32 account_id = 3;
+    string client_version_string = 4;
 }
 
 message ResCreateAlipayScanOrder {
@@ -3225,6 +3242,7 @@ message ReqCreateAlipayAppOrder {
     uint32 goods_id = 1;
     uint32 client_type = 2;
     uint32 account_id = 3;
+    string client_version_string = 4;
 }
 
 message ResCreateAlipayAppOrder {
@@ -3240,6 +3258,7 @@ message ReqCreateJPCreditCardOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateJPCreditCardOrder {
@@ -3255,6 +3274,7 @@ message ReqCreateJPPaypalOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateJPPaypalOrder {
@@ -3270,6 +3290,7 @@ message ReqCreateJPAuOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateJPAuOrder {
@@ -3285,6 +3306,7 @@ message ReqCreateJPDocomoOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateJPDocomoOrder {
@@ -3300,6 +3322,7 @@ message ReqCreateJPWebMoneyOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateJPWebMoneyOrder {
@@ -3315,6 +3338,7 @@ message ReqCreateJPSoftbankOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateJPSoftbankOrder {
@@ -3323,12 +3347,40 @@ message ResCreateJPSoftbankOrder {
     string order_id = 2;
 }
 
+message ReqCreateJPPayPayOrder {
+
+    uint32 goods_id = 1;
+    uint32 client_type = 2;
+    uint32 account_id = 3;
+    string return_url = 4;
+    string access_token = 5;
+    string client_version_string = 6;
+}
+
+message ResCreateJPPayPayOrder {
+
+    Error error = 1;
+    string order_id = 2;
+}
+
+message ReqFetchJPCommonOrder {
+
+    string order_id = 1;
+    uint32 account_id = 2;
+}
+
+message ResFetchJPCommonOrder {
+
+    Error error = 1;
+}
+
 message ReqCreateYostarOrder {
 
     uint32 goods_id = 1;
     uint32 client_type = 2;
     uint32 account_id = 3;
     uint32 order_type = 4;
+    string client_version_string = 5;
 }
 
 message ResCreateYostarOrder {
@@ -3344,6 +3396,7 @@ message ReqCreateENPaypalOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateENPaypalOrder {
@@ -3359,6 +3412,7 @@ message ReqCreateENJCBOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateENJCBOrder {
@@ -3374,6 +3428,7 @@ message ReqCreateENMasterCardOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateENMasterCardOrder {
@@ -3389,6 +3444,7 @@ message ReqCreateENVisaOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateENVisaOrder {
@@ -3404,9 +3460,90 @@ message ReqCreateENAlipayOrder {
     uint32 account_id = 3;
     string return_url = 4;
     string access_token = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateENAlipayOrder {
+
+    Error error = 1;
+    string order_id = 2;
+}
+
+message ReqCreateKRPaypalOrder {
+
+    uint32 goods_id = 1;
+    uint32 client_type = 2;
+    uint32 account_id = 3;
+    string return_url = 4;
+    string access_token = 5;
+    string client_version_string = 6;
+}
+
+message ResCreateKRPaypalOrder {
+
+    Error error = 1;
+    string order_id = 2;
+}
+
+message ReqCreateKRJCBOrder {
+
+    uint32 goods_id = 1;
+    uint32 client_type = 2;
+    uint32 account_id = 3;
+    string return_url = 4;
+    string access_token = 5;
+    string client_version_string = 6;
+}
+
+message ResCreateKRJCBOrder {
+
+    Error error = 1;
+    string order_id = 2;
+}
+
+message ReqCreateKRMasterCardOrder {
+
+    uint32 goods_id = 1;
+    uint32 client_type = 2;
+    uint32 account_id = 3;
+    string return_url = 4;
+    string access_token = 5;
+    string client_version_string = 6;
+}
+
+message ResCreateKRMasterCardOrder {
+
+    Error error = 1;
+    string order_id = 2;
+}
+
+message ReqCreateKRVisaOrder {
+
+    uint32 goods_id = 1;
+    uint32 client_type = 2;
+    uint32 account_id = 3;
+    string return_url = 4;
+    string access_token = 5;
+    string client_version_string = 6;
+}
+
+message ResCreateKRVisaOrder {
+
+    Error error = 1;
+    string order_id = 2;
+}
+
+message ReqCreateKRAlipayOrder {
+
+    uint32 goods_id = 1;
+    uint32 client_type = 2;
+    uint32 account_id = 3;
+    string return_url = 4;
+    string access_token = 5;
+    string client_version_string = 6;
+}
+
+message ResCreateKRAlipayOrder {
 
     Error error = 1;
     string order_id = 2;
@@ -3417,6 +3554,7 @@ message ReqCreateDMMOrder {
     uint32 goods_id = 1;
     uint32 account_id = 2;
     uint32 client_type = 3;
+    string client_version_string = 4;
 }
 
 message ResCreateDmmOrder {
@@ -3438,6 +3576,7 @@ message ReqCreateIAPOrder {
     uint32 account_id = 3;
     string access_token = 4;
     string debt_order_id = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateIAPOrder {
@@ -3467,6 +3606,7 @@ message ReqCreateSteamOrder {
     uint32 goods_id = 4;
     string steam_id = 5;
     string debt_order_id = 6;
+    string client_version_string = 7;
 }
 
 message ResCreateSteamOrder {
@@ -3488,6 +3628,7 @@ message ReqCreateMyCardOrder {
     uint32 client_type = 2;
     uint32 account_id = 3;
     string debt_order_id = 4;
+    string client_version_string = 5;
 }
 
 message ResCreateMyCardOrder {
@@ -3509,6 +3650,7 @@ message ReqCreatePaypalOrder {
     uint32 client_type = 2;
     uint32 account_id = 3;
     string debt_order_id = 4;
+    string client_version_string = 5;
 }
 
 message ResCreatePaypalOrder {
@@ -3525,6 +3667,7 @@ message ReqCreateXsollaOrder {
     uint32 account_id = 3;
     uint32 payment_method = 4;
     string debt_order_id = 5;
+    string client_version_string = 6;
 }
 
 message ResCreateXsollaOrder {
@@ -4755,6 +4898,29 @@ message ReqLogReport {
     uint32 failed = 2;
 }
 
+message ReqBindOauth2 {
+
+    uint32 type = 1;
+    string token = 2;
+}
+
+message ReqFetchOauth2 {
+
+    uint32 type = 1;
+}
+
+message ResFetchOauth2 {
+
+    Error error = 1;
+    string openid = 2;
+}
+
+message ResDeleteAccount {
+
+    Error error = 1;
+    uint32 delete_time = 2;
+}
+
 message ActionMJStart {
 }
 
@@ -5198,6 +5364,7 @@ message ActionDealTile {
     repeated TingPaiDiscardInfo tingpais = 8;
     uint32 tile_state = 9;
     MuyuInfo muyu = 10;
+    uint32 tile_index = 11;
 }
 
 message RecordDealTile {
@@ -5211,6 +5378,23 @@ message RecordDealTile {
     OptionalOperationList operation = 8;
     uint32 tile_state = 9;
     MuyuInfo muyu = 11;
+    uint32 tile_index = 12;
+}
+
+message ActionFillAwaitingTiles {
+
+    repeated string awaiting_tiles = 1;
+    uint32 left_tile_count = 2;
+    OptionalOperationList operation = 3;
+    LiQiSuccess liqi = 4;
+}
+
+message RecordFillAwaitingTiles {
+
+    repeated string awaiting_tiles = 1;
+    uint32 left_tile_count = 2;
+    OptionalOperationList operation = 3;
+    LiQiSuccess liqi = 4;
 }
 
 message ActionChiPengGang {
