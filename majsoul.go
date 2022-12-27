@@ -5,7 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/constellation39/majsoul/logger"
+	"go.uber.org/zap"
 	"math/rand"
 	"time"
 
@@ -52,7 +53,7 @@ type Majsoul struct {
 	message.FastTestClient             // message.FastTestClient 场景处于游戏桌面时调用该接口
 	FastTestConn           *ClientConn // FastTestConn 是 message.FastTestClient 使用的连接
 
-	Implement     // 使得程序可以以多态的方式调用 message.LobbyClient 或 message.FastTestClient 的接口
+	Implement     Implement // 使得程序可以以多态的方式调用 message.LobbyClient 或 message.FastTestClient 的接口
 	UUID          string
 	ServerAddress *ServerAddress
 
@@ -106,7 +107,7 @@ func (majsoul *Majsoul) init() {
 	majsoul.Version, err = majsoul.version()
 
 	if err != nil {
-		log.Fatalf("Majsoul.init version error: %v \n", err)
+		logger.Panic("Majsoul.init version error:", zap.Error(err))
 	}
 }
 
@@ -150,7 +151,7 @@ loop:
 			}
 			_, err := majsoul.Heatbeat(majsoul.Ctx, &message.ReqHeatBeat{})
 			if err != nil {
-				fmt.Println("heatbeat error:", err)
+				logger.Error("Majsoul.heatbeat error:", zap.Error(err))
 				return
 			}
 		case <-t2.C:
@@ -159,7 +160,7 @@ loop:
 			}
 			_, err := majsoul.CheckNetworkDelay(majsoul.Ctx, &message.ReqCommon{})
 			if err != nil {
-				fmt.Println("checkNetworkDelay error:", err)
+				logger.Error("Majsoul.checkNetworkDelay error:", zap.Error(err))
 				return
 			}
 		case <-majsoul.Ctx.Done():
@@ -345,7 +346,7 @@ func (majsoul *Majsoul) handleNotify(data proto.Message) {
 	case *message.ActionPrototype:
 		majsoul.Implement.ActionPrototype(notify)
 	default:
-		log.Printf("Majsoul.handleNotify unknown message type: %T \n", notify)
+		logger.Info("Majsoul.handleNotify no path found", zap.Reflect("notify.Name", notify))
 	}
 }
 

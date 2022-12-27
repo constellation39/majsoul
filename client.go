@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
+	"github.com/constellation39/majsoul/logger"
+	"go.uber.org/zap"
 	"strings"
 	"sync"
 
@@ -51,7 +52,7 @@ receive:
 		case MsgTypeResponse:
 			c.handleResponse(msg)
 		default:
-			log.Printf("ClientConn.loop unknown msg type: %d \n", msg[0])
+			logger.Info("ClientConn.loop unknown msg type: ", zap.Uint8("value", msg[0]))
 		}
 		select {
 		case <-c.ctx.Done():
@@ -65,17 +66,17 @@ func (c *ClientConn) handleNotify(msg []byte) {
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[1:], wrapper)
 	if err != nil {
-		log.Printf("ClientConn.handleNotify unmarshal error: %v \n", err)
+		logger.Error("ClientConn.handleNotify unmarshal error: ", zap.Error(err))
 		return
 	}
 	pm := message.GetNotifyType(wrapper.Name)
 	if pm == nil {
-		log.Printf("ClientConn.handleNotify unknown notify type: %s \n", wrapper.Name)
+		logger.Error("ClientConn.handleNotify unknown notify type: ", zap.String("wrapper.Name", wrapper.Name))
 		return
 	}
 	err = proto.Unmarshal(wrapper.Data, pm)
 	if err != nil {
-		log.Printf("ClientConn.handleNotify unmarshal error: %v \n", err)
+		logger.Error("ClientConn.handleNotify unmarshal error: ", zap.Error(err))
 		return
 	}
 	c.notify <- pm
@@ -85,23 +86,23 @@ func (c *ClientConn) handleResponse(msg []byte) {
 	key := (msg[2] << 7) + msg[1]
 	v, ok := c.replys.Load(key)
 	if !ok {
-		log.Printf("ClientConn.handleResponse not found key: %d \n", key)
+		logger.Error("ClientConn.handleResponse not found key: ", zap.Uint8("key", key))
 		return
 	}
 	reply, ok := v.(*Reply)
 	if !ok {
-		log.Printf("ClientConn.handleResponse rv not proto.Message: %v \n", reply)
+		logger.Error("ClientConn.handleResponse rv not proto.Message: ", zap.Reflect("reply", reply))
 		return
 	}
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[3:], wrapper)
 	if err != nil {
-		log.Printf("ClientConn.handleResponse unmarshal error: %v \n", err)
+		logger.Error("ClientConn.handleResponse unmarshal error: ", zap.Error(err))
 		return
 	}
 	err = proto.Unmarshal(wrapper.Data, reply.out)
 	if err != nil {
-		log.Printf("ClientConn.handleResponse unmarshal error: %v \n", err)
+		logger.Error("ClientConn.handleResponse unmarshal error: ", zap.Error(err))
 		return
 	}
 	close(reply.wait)

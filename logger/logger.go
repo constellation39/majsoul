@@ -16,6 +16,7 @@ func init() {
 	signalChan := make(chan os.Signal)
 	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	go signalLoop(signalChan)
+	initLogger(false)
 }
 
 func initLogger(debug bool) {
