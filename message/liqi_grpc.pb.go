@@ -23,6 +23,8 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type LobbyClient interface {
 	FetchConnectionInfo(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResConnectionInfo, error)
+	FetchQueueInfo(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchQueueInfo, error)
+	CancelQueue(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResCommon, error)
 	Signup(ctx context.Context, in *ReqSignupAccount, opts ...grpc.CallOption) (*ResSignupAccount, error)
 	Login(ctx context.Context, in *ReqLogin, opts ...grpc.CallOption) (*ResLogin, error)
 	LoginSuccess(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResCommon, error)
@@ -180,11 +182,18 @@ type LobbyClient interface {
 	CreateJPDocomoOrder(ctx context.Context, in *ReqCreateJPDocomoOrder, opts ...grpc.CallOption) (*ResCreateJPDocomoOrder, error)
 	CreateJPWebMoneyOrder(ctx context.Context, in *ReqCreateJPWebMoneyOrder, opts ...grpc.CallOption) (*ResCreateJPWebMoneyOrder, error)
 	CreateJPSoftbankOrder(ctx context.Context, in *ReqCreateJPSoftbankOrder, opts ...grpc.CallOption) (*ResCreateJPSoftbankOrder, error)
+	CreateJPPayPayOrder(ctx context.Context, in *ReqCreateJPPayPayOrder, opts ...grpc.CallOption) (*ResCreateJPPayPayOrder, error)
+	FetchJPCommonCreditCardOrder(ctx context.Context, in *ReqFetchJPCommonCreditCardOrder, opts ...grpc.CallOption) (*ResFetchJPCommonCreditCardOrder, error)
 	CreateENPaypalOrder(ctx context.Context, in *ReqCreateENPaypalOrder, opts ...grpc.CallOption) (*ResCreateENPaypalOrder, error)
 	CreateENMasterCardOrder(ctx context.Context, in *ReqCreateENMasterCardOrder, opts ...grpc.CallOption) (*ResCreateENMasterCardOrder, error)
 	CreateENVisaOrder(ctx context.Context, in *ReqCreateENVisaOrder, opts ...grpc.CallOption) (*ResCreateENVisaOrder, error)
 	CreateENJCBOrder(ctx context.Context, in *ReqCreateENJCBOrder, opts ...grpc.CallOption) (*ResCreateENJCBOrder, error)
 	CreateENAlipayOrder(ctx context.Context, in *ReqCreateENAlipayOrder, opts ...grpc.CallOption) (*ResCreateENAlipayOrder, error)
+	CreateKRPaypalOrder(ctx context.Context, in *ReqCreateKRPaypalOrder, opts ...grpc.CallOption) (*ResCreateKRPaypalOrder, error)
+	CreateKRMasterCardOrder(ctx context.Context, in *ReqCreateKRMasterCardOrder, opts ...grpc.CallOption) (*ResCreateKRMasterCardOrder, error)
+	CreateKRVisaOrder(ctx context.Context, in *ReqCreateKRVisaOrder, opts ...grpc.CallOption) (*ResCreateKRVisaOrder, error)
+	CreateKRJCBOrder(ctx context.Context, in *ReqCreateKRJCBOrder, opts ...grpc.CallOption) (*ResCreateKRJCBOrder, error)
+	CreateKRAlipayOrder(ctx context.Context, in *ReqCreateKRAlipayOrder, opts ...grpc.CallOption) (*ResCreateKRAlipayOrder, error)
 	CreateDMMOrder(ctx context.Context, in *ReqCreateDMMOrder, opts ...grpc.CallOption) (*ResCreateDmmOrder, error)
 	CreateIAPOrder(ctx context.Context, in *ReqCreateIAPOrder, opts ...grpc.CallOption) (*ResCreateIAPOrder, error)
 	CreateSteamOrder(ctx context.Context, in *ReqCreateSteamOrder, opts ...grpc.CallOption) (*ResCreateSteamOrder, error)
@@ -199,6 +208,7 @@ type LobbyClient interface {
 	CreateBillingOrder(ctx context.Context, in *ReqCreateBillingOrder, opts ...grpc.CallOption) (*ResCreateBillingOrder, error)
 	SolveGooglePlayOrder(ctx context.Context, in *ReqSolveGooglePlayOrder, opts ...grpc.CallOption) (*ResCommon, error)
 	SolveGooglePayOrderV3(ctx context.Context, in *ReqSolveGooglePlayOrderV3, opts ...grpc.CallOption) (*ResCommon, error)
+	DeliverAA32Order(ctx context.Context, in *ReqDeliverAA32Order, opts ...grpc.CallOption) (*ResCommon, error)
 	FetchMisc(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResMisc, error)
 	ModifySignature(ctx context.Context, in *ReqModifySignature, opts ...grpc.CallOption) (*ResCommon, error)
 	FetchIDCardInfo(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResIDCardInfo, error)
@@ -265,7 +275,9 @@ type LobbyClient interface {
 	CheckPrivacy(ctx context.Context, in *ReqCheckPrivacy, opts ...grpc.CallOption) (*ResCommon, error)
 	ResponseCaptcha(ctx context.Context, in *ReqResponseCaptcha, opts ...grpc.CallOption) (*ResCommon, error)
 	FetchRPGBattleHistory(ctx context.Context, in *ReqFetchRPGBattleHistory, opts ...grpc.CallOption) (*ResFetchRPGBattleHistory, error)
+	FetchRPGBattleHistoryV2(ctx context.Context, in *ReqFetchRPGBattleHistory, opts ...grpc.CallOption) (*ResFetchRPGBattleHistoryV2, error)
 	ReceiveRPGRewards(ctx context.Context, in *ReqReceiveRPGRewards, opts ...grpc.CallOption) (*ResReceiveRPGRewards, error)
+	ReceiveRPGReward(ctx context.Context, in *ReqReceiveRPGReward, opts ...grpc.CallOption) (*ResReceiveRPGRewards, error)
 	BuyArenaTicket(ctx context.Context, in *ReqBuyArenaTicket, opts ...grpc.CallOption) (*ResCommon, error)
 	EnterArena(ctx context.Context, in *ReqEnterArena, opts ...grpc.CallOption) (*ResCommon, error)
 	ReceiveArenaReward(ctx context.Context, in *ReqArenaReward, opts ...grpc.CallOption) (*ResArenaReward, error)
@@ -276,6 +288,18 @@ type LobbyClient interface {
 	ReceiveActivityGift(ctx context.Context, in *ReqReceiveActivityGift, opts ...grpc.CallOption) (*ResCommon, error)
 	FetchFriendFeedActivityData(ctx context.Context, in *ReqFetchFriendFeedActivityData, opts ...grpc.CallOption) (*ResFetchFriendFeedActivityData, error)
 	OpenPreChestItem(ctx context.Context, in *ReqOpenPreChestItem, opts ...grpc.CallOption) (*ResOpenPreChestItem, error)
+	FetchVoteActivity(ctx context.Context, in *ReqFetchVoteActivity, opts ...grpc.CallOption) (*ResFetchVoteActivity, error)
+	VoteActivity(ctx context.Context, in *ReqVoteActivity, opts ...grpc.CallOption) (*ResVoteActivity, error)
+	UnlockActivitySpot(ctx context.Context, in *ReqUnlockActivitySpot, opts ...grpc.CallOption) (*ResCommon, error)
+	ReceiveActivitySpotReward(ctx context.Context, in *ReqReceiveActivitySpotReward, opts ...grpc.CallOption) (*ResReceiveActivitySpotReward, error)
+	DeleteAccount(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResDeleteAccount, error)
+	CancelDeleteAccount(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResCommon, error)
+	LogReport(ctx context.Context, in *ReqLogReport, opts ...grpc.CallOption) (*ResCommon, error)
+	BindOauth2(ctx context.Context, in *ReqBindOauth2, opts ...grpc.CallOption) (*ResCommon, error)
+	FetchOauth2Info(ctx context.Context, in *ReqFetchOauth2, opts ...grpc.CallOption) (*ResFetchOauth2, error)
+	SetLoadingImage(ctx context.Context, in *ReqSetLoadingImage, opts ...grpc.CallOption) (*ResCommon, error)
+	FetchShopInterval(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchShopInterval, error)
+	FetchRecentFriend(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchrecentFriend, error)
 }
 
 type lobbyClient struct {
@@ -289,6 +313,24 @@ func NewLobbyClient(cc grpc.ClientConnInterface) LobbyClient {
 func (c *lobbyClient) FetchConnectionInfo(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResConnectionInfo, error) {
 	out := new(ResConnectionInfo)
 	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchConnectionInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) FetchQueueInfo(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchQueueInfo, error) {
+	out := new(ResFetchQueueInfo)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchQueueInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) CancelQueue(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResCommon, error) {
+	out := new(ResCommon)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/cancelQueue", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1708,6 +1750,24 @@ func (c *lobbyClient) CreateJPSoftbankOrder(ctx context.Context, in *ReqCreateJP
 	return out, nil
 }
 
+func (c *lobbyClient) CreateJPPayPayOrder(ctx context.Context, in *ReqCreateJPPayPayOrder, opts ...grpc.CallOption) (*ResCreateJPPayPayOrder, error) {
+	out := new(ResCreateJPPayPayOrder)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/createJPPayPayOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) FetchJPCommonCreditCardOrder(ctx context.Context, in *ReqFetchJPCommonCreditCardOrder, opts ...grpc.CallOption) (*ResFetchJPCommonCreditCardOrder, error) {
+	out := new(ResFetchJPCommonCreditCardOrder)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchJPCommonCreditCardOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *lobbyClient) CreateENPaypalOrder(ctx context.Context, in *ReqCreateENPaypalOrder, opts ...grpc.CallOption) (*ResCreateENPaypalOrder, error) {
 	out := new(ResCreateENPaypalOrder)
 	err := c.cc.Invoke(ctx, "/lq.Lobby/createENPaypalOrder", in, out, opts...)
@@ -1747,6 +1807,51 @@ func (c *lobbyClient) CreateENJCBOrder(ctx context.Context, in *ReqCreateENJCBOr
 func (c *lobbyClient) CreateENAlipayOrder(ctx context.Context, in *ReqCreateENAlipayOrder, opts ...grpc.CallOption) (*ResCreateENAlipayOrder, error) {
 	out := new(ResCreateENAlipayOrder)
 	err := c.cc.Invoke(ctx, "/lq.Lobby/createENAlipayOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) CreateKRPaypalOrder(ctx context.Context, in *ReqCreateKRPaypalOrder, opts ...grpc.CallOption) (*ResCreateKRPaypalOrder, error) {
+	out := new(ResCreateKRPaypalOrder)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/createKRPaypalOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) CreateKRMasterCardOrder(ctx context.Context, in *ReqCreateKRMasterCardOrder, opts ...grpc.CallOption) (*ResCreateKRMasterCardOrder, error) {
+	out := new(ResCreateKRMasterCardOrder)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/createKRMasterCardOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) CreateKRVisaOrder(ctx context.Context, in *ReqCreateKRVisaOrder, opts ...grpc.CallOption) (*ResCreateKRVisaOrder, error) {
+	out := new(ResCreateKRVisaOrder)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/createKRVisaOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) CreateKRJCBOrder(ctx context.Context, in *ReqCreateKRJCBOrder, opts ...grpc.CallOption) (*ResCreateKRJCBOrder, error) {
+	out := new(ResCreateKRJCBOrder)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/createKRJCBOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) CreateKRAlipayOrder(ctx context.Context, in *ReqCreateKRAlipayOrder, opts ...grpc.CallOption) (*ResCreateKRAlipayOrder, error) {
+	out := new(ResCreateKRAlipayOrder)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/createKRAlipayOrder", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1873,6 +1978,15 @@ func (c *lobbyClient) SolveGooglePlayOrder(ctx context.Context, in *ReqSolveGoog
 func (c *lobbyClient) SolveGooglePayOrderV3(ctx context.Context, in *ReqSolveGooglePlayOrderV3, opts ...grpc.CallOption) (*ResCommon, error) {
 	out := new(ResCommon)
 	err := c.cc.Invoke(ctx, "/lq.Lobby/solveGooglePayOrderV3", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) DeliverAA32Order(ctx context.Context, in *ReqDeliverAA32Order, opts ...grpc.CallOption) (*ResCommon, error) {
+	out := new(ResCommon)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/deliverAA32Order", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2473,9 +2587,27 @@ func (c *lobbyClient) FetchRPGBattleHistory(ctx context.Context, in *ReqFetchRPG
 	return out, nil
 }
 
+func (c *lobbyClient) FetchRPGBattleHistoryV2(ctx context.Context, in *ReqFetchRPGBattleHistory, opts ...grpc.CallOption) (*ResFetchRPGBattleHistoryV2, error) {
+	out := new(ResFetchRPGBattleHistoryV2)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchRPGBattleHistoryV2", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *lobbyClient) ReceiveRPGRewards(ctx context.Context, in *ReqReceiveRPGRewards, opts ...grpc.CallOption) (*ResReceiveRPGRewards, error) {
 	out := new(ResReceiveRPGRewards)
 	err := c.cc.Invoke(ctx, "/lq.Lobby/receiveRPGRewards", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) ReceiveRPGReward(ctx context.Context, in *ReqReceiveRPGReward, opts ...grpc.CallOption) (*ResReceiveRPGRewards, error) {
+	out := new(ResReceiveRPGRewards)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/receiveRPGReward", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2572,11 +2704,121 @@ func (c *lobbyClient) OpenPreChestItem(ctx context.Context, in *ReqOpenPreChestI
 	return out, nil
 }
 
+func (c *lobbyClient) FetchVoteActivity(ctx context.Context, in *ReqFetchVoteActivity, opts ...grpc.CallOption) (*ResFetchVoteActivity, error) {
+	out := new(ResFetchVoteActivity)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchVoteActivity", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) VoteActivity(ctx context.Context, in *ReqVoteActivity, opts ...grpc.CallOption) (*ResVoteActivity, error) {
+	out := new(ResVoteActivity)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/voteActivity", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) UnlockActivitySpot(ctx context.Context, in *ReqUnlockActivitySpot, opts ...grpc.CallOption) (*ResCommon, error) {
+	out := new(ResCommon)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/unlockActivitySpot", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) ReceiveActivitySpotReward(ctx context.Context, in *ReqReceiveActivitySpotReward, opts ...grpc.CallOption) (*ResReceiveActivitySpotReward, error) {
+	out := new(ResReceiveActivitySpotReward)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/receiveActivitySpotReward", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) DeleteAccount(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResDeleteAccount, error) {
+	out := new(ResDeleteAccount)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/deleteAccount", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) CancelDeleteAccount(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResCommon, error) {
+	out := new(ResCommon)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/cancelDeleteAccount", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) LogReport(ctx context.Context, in *ReqLogReport, opts ...grpc.CallOption) (*ResCommon, error) {
+	out := new(ResCommon)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/logReport", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) BindOauth2(ctx context.Context, in *ReqBindOauth2, opts ...grpc.CallOption) (*ResCommon, error) {
+	out := new(ResCommon)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/bindOauth2", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) FetchOauth2Info(ctx context.Context, in *ReqFetchOauth2, opts ...grpc.CallOption) (*ResFetchOauth2, error) {
+	out := new(ResFetchOauth2)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchOauth2Info", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) SetLoadingImage(ctx context.Context, in *ReqSetLoadingImage, opts ...grpc.CallOption) (*ResCommon, error) {
+	out := new(ResCommon)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/setLoadingImage", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) FetchShopInterval(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchShopInterval, error) {
+	out := new(ResFetchShopInterval)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchShopInterval", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) FetchRecentFriend(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchrecentFriend, error) {
+	out := new(ResFetchrecentFriend)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchRecentFriend", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LobbyServer is the server API for Lobby service.
 // All implementations must embed UnimplementedLobbyServer
 // for forward compatibility
 type LobbyServer interface {
 	FetchConnectionInfo(context.Context, *ReqCommon) (*ResConnectionInfo, error)
+	FetchQueueInfo(context.Context, *ReqCommon) (*ResFetchQueueInfo, error)
+	CancelQueue(context.Context, *ReqCommon) (*ResCommon, error)
 	Signup(context.Context, *ReqSignupAccount) (*ResSignupAccount, error)
 	Login(context.Context, *ReqLogin) (*ResLogin, error)
 	LoginSuccess(context.Context, *ReqCommon) (*ResCommon, error)
@@ -2734,11 +2976,18 @@ type LobbyServer interface {
 	CreateJPDocomoOrder(context.Context, *ReqCreateJPDocomoOrder) (*ResCreateJPDocomoOrder, error)
 	CreateJPWebMoneyOrder(context.Context, *ReqCreateJPWebMoneyOrder) (*ResCreateJPWebMoneyOrder, error)
 	CreateJPSoftbankOrder(context.Context, *ReqCreateJPSoftbankOrder) (*ResCreateJPSoftbankOrder, error)
+	CreateJPPayPayOrder(context.Context, *ReqCreateJPPayPayOrder) (*ResCreateJPPayPayOrder, error)
+	FetchJPCommonCreditCardOrder(context.Context, *ReqFetchJPCommonCreditCardOrder) (*ResFetchJPCommonCreditCardOrder, error)
 	CreateENPaypalOrder(context.Context, *ReqCreateENPaypalOrder) (*ResCreateENPaypalOrder, error)
 	CreateENMasterCardOrder(context.Context, *ReqCreateENMasterCardOrder) (*ResCreateENMasterCardOrder, error)
 	CreateENVisaOrder(context.Context, *ReqCreateENVisaOrder) (*ResCreateENVisaOrder, error)
 	CreateENJCBOrder(context.Context, *ReqCreateENJCBOrder) (*ResCreateENJCBOrder, error)
 	CreateENAlipayOrder(context.Context, *ReqCreateENAlipayOrder) (*ResCreateENAlipayOrder, error)
+	CreateKRPaypalOrder(context.Context, *ReqCreateKRPaypalOrder) (*ResCreateKRPaypalOrder, error)
+	CreateKRMasterCardOrder(context.Context, *ReqCreateKRMasterCardOrder) (*ResCreateKRMasterCardOrder, error)
+	CreateKRVisaOrder(context.Context, *ReqCreateKRVisaOrder) (*ResCreateKRVisaOrder, error)
+	CreateKRJCBOrder(context.Context, *ReqCreateKRJCBOrder) (*ResCreateKRJCBOrder, error)
+	CreateKRAlipayOrder(context.Context, *ReqCreateKRAlipayOrder) (*ResCreateKRAlipayOrder, error)
 	CreateDMMOrder(context.Context, *ReqCreateDMMOrder) (*ResCreateDmmOrder, error)
 	CreateIAPOrder(context.Context, *ReqCreateIAPOrder) (*ResCreateIAPOrder, error)
 	CreateSteamOrder(context.Context, *ReqCreateSteamOrder) (*ResCreateSteamOrder, error)
@@ -2753,6 +3002,7 @@ type LobbyServer interface {
 	CreateBillingOrder(context.Context, *ReqCreateBillingOrder) (*ResCreateBillingOrder, error)
 	SolveGooglePlayOrder(context.Context, *ReqSolveGooglePlayOrder) (*ResCommon, error)
 	SolveGooglePayOrderV3(context.Context, *ReqSolveGooglePlayOrderV3) (*ResCommon, error)
+	DeliverAA32Order(context.Context, *ReqDeliverAA32Order) (*ResCommon, error)
 	FetchMisc(context.Context, *ReqCommon) (*ResMisc, error)
 	ModifySignature(context.Context, *ReqModifySignature) (*ResCommon, error)
 	FetchIDCardInfo(context.Context, *ReqCommon) (*ResIDCardInfo, error)
@@ -2819,7 +3069,9 @@ type LobbyServer interface {
 	CheckPrivacy(context.Context, *ReqCheckPrivacy) (*ResCommon, error)
 	ResponseCaptcha(context.Context, *ReqResponseCaptcha) (*ResCommon, error)
 	FetchRPGBattleHistory(context.Context, *ReqFetchRPGBattleHistory) (*ResFetchRPGBattleHistory, error)
+	FetchRPGBattleHistoryV2(context.Context, *ReqFetchRPGBattleHistory) (*ResFetchRPGBattleHistoryV2, error)
 	ReceiveRPGRewards(context.Context, *ReqReceiveRPGRewards) (*ResReceiveRPGRewards, error)
+	ReceiveRPGReward(context.Context, *ReqReceiveRPGReward) (*ResReceiveRPGRewards, error)
 	BuyArenaTicket(context.Context, *ReqBuyArenaTicket) (*ResCommon, error)
 	EnterArena(context.Context, *ReqEnterArena) (*ResCommon, error)
 	ReceiveArenaReward(context.Context, *ReqArenaReward) (*ResArenaReward, error)
@@ -2830,6 +3082,18 @@ type LobbyServer interface {
 	ReceiveActivityGift(context.Context, *ReqReceiveActivityGift) (*ResCommon, error)
 	FetchFriendFeedActivityData(context.Context, *ReqFetchFriendFeedActivityData) (*ResFetchFriendFeedActivityData, error)
 	OpenPreChestItem(context.Context, *ReqOpenPreChestItem) (*ResOpenPreChestItem, error)
+	FetchVoteActivity(context.Context, *ReqFetchVoteActivity) (*ResFetchVoteActivity, error)
+	VoteActivity(context.Context, *ReqVoteActivity) (*ResVoteActivity, error)
+	UnlockActivitySpot(context.Context, *ReqUnlockActivitySpot) (*ResCommon, error)
+	ReceiveActivitySpotReward(context.Context, *ReqReceiveActivitySpotReward) (*ResReceiveActivitySpotReward, error)
+	DeleteAccount(context.Context, *ReqCommon) (*ResDeleteAccount, error)
+	CancelDeleteAccount(context.Context, *ReqCommon) (*ResCommon, error)
+	LogReport(context.Context, *ReqLogReport) (*ResCommon, error)
+	BindOauth2(context.Context, *ReqBindOauth2) (*ResCommon, error)
+	FetchOauth2Info(context.Context, *ReqFetchOauth2) (*ResFetchOauth2, error)
+	SetLoadingImage(context.Context, *ReqSetLoadingImage) (*ResCommon, error)
+	FetchShopInterval(context.Context, *ReqCommon) (*ResFetchShopInterval, error)
+	FetchRecentFriend(context.Context, *ReqCommon) (*ResFetchrecentFriend, error)
 	mustEmbedUnimplementedLobbyServer()
 }
 
@@ -2839,6 +3103,12 @@ type UnimplementedLobbyServer struct {
 
 func (UnimplementedLobbyServer) FetchConnectionInfo(context.Context, *ReqCommon) (*ResConnectionInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchConnectionInfo not implemented")
+}
+func (UnimplementedLobbyServer) FetchQueueInfo(context.Context, *ReqCommon) (*ResFetchQueueInfo, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchQueueInfo not implemented")
+}
+func (UnimplementedLobbyServer) CancelQueue(context.Context, *ReqCommon) (*ResCommon, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelQueue not implemented")
 }
 func (UnimplementedLobbyServer) Signup(context.Context, *ReqSignupAccount) (*ResSignupAccount, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Signup not implemented")
@@ -3311,6 +3581,12 @@ func (UnimplementedLobbyServer) CreateJPWebMoneyOrder(context.Context, *ReqCreat
 func (UnimplementedLobbyServer) CreateJPSoftbankOrder(context.Context, *ReqCreateJPSoftbankOrder) (*ResCreateJPSoftbankOrder, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateJPSoftbankOrder not implemented")
 }
+func (UnimplementedLobbyServer) CreateJPPayPayOrder(context.Context, *ReqCreateJPPayPayOrder) (*ResCreateJPPayPayOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateJPPayPayOrder not implemented")
+}
+func (UnimplementedLobbyServer) FetchJPCommonCreditCardOrder(context.Context, *ReqFetchJPCommonCreditCardOrder) (*ResFetchJPCommonCreditCardOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchJPCommonCreditCardOrder not implemented")
+}
 func (UnimplementedLobbyServer) CreateENPaypalOrder(context.Context, *ReqCreateENPaypalOrder) (*ResCreateENPaypalOrder, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateENPaypalOrder not implemented")
 }
@@ -3325,6 +3601,21 @@ func (UnimplementedLobbyServer) CreateENJCBOrder(context.Context, *ReqCreateENJC
 }
 func (UnimplementedLobbyServer) CreateENAlipayOrder(context.Context, *ReqCreateENAlipayOrder) (*ResCreateENAlipayOrder, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateENAlipayOrder not implemented")
+}
+func (UnimplementedLobbyServer) CreateKRPaypalOrder(context.Context, *ReqCreateKRPaypalOrder) (*ResCreateKRPaypalOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateKRPaypalOrder not implemented")
+}
+func (UnimplementedLobbyServer) CreateKRMasterCardOrder(context.Context, *ReqCreateKRMasterCardOrder) (*ResCreateKRMasterCardOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateKRMasterCardOrder not implemented")
+}
+func (UnimplementedLobbyServer) CreateKRVisaOrder(context.Context, *ReqCreateKRVisaOrder) (*ResCreateKRVisaOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateKRVisaOrder not implemented")
+}
+func (UnimplementedLobbyServer) CreateKRJCBOrder(context.Context, *ReqCreateKRJCBOrder) (*ResCreateKRJCBOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateKRJCBOrder not implemented")
+}
+func (UnimplementedLobbyServer) CreateKRAlipayOrder(context.Context, *ReqCreateKRAlipayOrder) (*ResCreateKRAlipayOrder, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateKRAlipayOrder not implemented")
 }
 func (UnimplementedLobbyServer) CreateDMMOrder(context.Context, *ReqCreateDMMOrder) (*ResCreateDmmOrder, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateDMMOrder not implemented")
@@ -3367,6 +3658,9 @@ func (UnimplementedLobbyServer) SolveGooglePlayOrder(context.Context, *ReqSolveG
 }
 func (UnimplementedLobbyServer) SolveGooglePayOrderV3(context.Context, *ReqSolveGooglePlayOrderV3) (*ResCommon, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SolveGooglePayOrderV3 not implemented")
+}
+func (UnimplementedLobbyServer) DeliverAA32Order(context.Context, *ReqDeliverAA32Order) (*ResCommon, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeliverAA32Order not implemented")
 }
 func (UnimplementedLobbyServer) FetchMisc(context.Context, *ReqCommon) (*ResMisc, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchMisc not implemented")
@@ -3566,8 +3860,14 @@ func (UnimplementedLobbyServer) ResponseCaptcha(context.Context, *ReqResponseCap
 func (UnimplementedLobbyServer) FetchRPGBattleHistory(context.Context, *ReqFetchRPGBattleHistory) (*ResFetchRPGBattleHistory, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchRPGBattleHistory not implemented")
 }
+func (UnimplementedLobbyServer) FetchRPGBattleHistoryV2(context.Context, *ReqFetchRPGBattleHistory) (*ResFetchRPGBattleHistoryV2, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchRPGBattleHistoryV2 not implemented")
+}
 func (UnimplementedLobbyServer) ReceiveRPGRewards(context.Context, *ReqReceiveRPGRewards) (*ResReceiveRPGRewards, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReceiveRPGRewards not implemented")
+}
+func (UnimplementedLobbyServer) ReceiveRPGReward(context.Context, *ReqReceiveRPGReward) (*ResReceiveRPGRewards, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReceiveRPGReward not implemented")
 }
 func (UnimplementedLobbyServer) BuyArenaTicket(context.Context, *ReqBuyArenaTicket) (*ResCommon, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BuyArenaTicket not implemented")
@@ -3599,6 +3899,42 @@ func (UnimplementedLobbyServer) FetchFriendFeedActivityData(context.Context, *Re
 func (UnimplementedLobbyServer) OpenPreChestItem(context.Context, *ReqOpenPreChestItem) (*ResOpenPreChestItem, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method OpenPreChestItem not implemented")
 }
+func (UnimplementedLobbyServer) FetchVoteActivity(context.Context, *ReqFetchVoteActivity) (*ResFetchVoteActivity, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchVoteActivity not implemented")
+}
+func (UnimplementedLobbyServer) VoteActivity(context.Context, *ReqVoteActivity) (*ResVoteActivity, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VoteActivity not implemented")
+}
+func (UnimplementedLobbyServer) UnlockActivitySpot(context.Context, *ReqUnlockActivitySpot) (*ResCommon, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnlockActivitySpot not implemented")
+}
+func (UnimplementedLobbyServer) ReceiveActivitySpotReward(context.Context, *ReqReceiveActivitySpotReward) (*ResReceiveActivitySpotReward, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReceiveActivitySpotReward not implemented")
+}
+func (UnimplementedLobbyServer) DeleteAccount(context.Context, *ReqCommon) (*ResDeleteAccount, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteAccount not implemented")
+}
+func (UnimplementedLobbyServer) CancelDeleteAccount(context.Context, *ReqCommon) (*ResCommon, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelDeleteAccount not implemented")
+}
+func (UnimplementedLobbyServer) LogReport(context.Context, *ReqLogReport) (*ResCommon, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LogReport not implemented")
+}
+func (UnimplementedLobbyServer) BindOauth2(context.Context, *ReqBindOauth2) (*ResCommon, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BindOauth2 not implemented")
+}
+func (UnimplementedLobbyServer) FetchOauth2Info(context.Context, *ReqFetchOauth2) (*ResFetchOauth2, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchOauth2Info not implemented")
+}
+func (UnimplementedLobbyServer) SetLoadingImage(context.Context, *ReqSetLoadingImage) (*ResCommon, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetLoadingImage not implemented")
+}
+func (UnimplementedLobbyServer) FetchShopInterval(context.Context, *ReqCommon) (*ResFetchShopInterval, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchShopInterval not implemented")
+}
+func (UnimplementedLobbyServer) FetchRecentFriend(context.Context, *ReqCommon) (*ResFetchrecentFriend, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchRecentFriend not implemented")
+}
 func (UnimplementedLobbyServer) mustEmbedUnimplementedLobbyServer() {}
 
 // UnsafeLobbyServer may be embedded to opt out of forward compatibility for this service.
@@ -3626,6 +3962,42 @@ func _Lobby_FetchConnectionInfo_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LobbyServer).FetchConnectionInfo(ctx, req.(*ReqCommon))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_FetchQueueInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCommon)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).FetchQueueInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/fetchQueueInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).FetchQueueInfo(ctx, req.(*ReqCommon))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_CancelQueue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCommon)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).CancelQueue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/cancelQueue",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).CancelQueue(ctx, req.(*ReqCommon))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -6456,6 +6828,42 @@ func _Lobby_CreateJPSoftbankOrder_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Lobby_CreateJPPayPayOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCreateJPPayPayOrder)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).CreateJPPayPayOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/createJPPayPayOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).CreateJPPayPayOrder(ctx, req.(*ReqCreateJPPayPayOrder))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_FetchJPCommonCreditCardOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqFetchJPCommonCreditCardOrder)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).FetchJPCommonCreditCardOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/fetchJPCommonCreditCardOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).FetchJPCommonCreditCardOrder(ctx, req.(*ReqFetchJPCommonCreditCardOrder))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Lobby_CreateENPaypalOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReqCreateENPaypalOrder)
 	if err := dec(in); err != nil {
@@ -6542,6 +6950,96 @@ func _Lobby_CreateENAlipayOrder_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LobbyServer).CreateENAlipayOrder(ctx, req.(*ReqCreateENAlipayOrder))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_CreateKRPaypalOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCreateKRPaypalOrder)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).CreateKRPaypalOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/createKRPaypalOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).CreateKRPaypalOrder(ctx, req.(*ReqCreateKRPaypalOrder))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_CreateKRMasterCardOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCreateKRMasterCardOrder)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).CreateKRMasterCardOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/createKRMasterCardOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).CreateKRMasterCardOrder(ctx, req.(*ReqCreateKRMasterCardOrder))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_CreateKRVisaOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCreateKRVisaOrder)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).CreateKRVisaOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/createKRVisaOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).CreateKRVisaOrder(ctx, req.(*ReqCreateKRVisaOrder))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_CreateKRJCBOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCreateKRJCBOrder)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).CreateKRJCBOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/createKRJCBOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).CreateKRJCBOrder(ctx, req.(*ReqCreateKRJCBOrder))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_CreateKRAlipayOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCreateKRAlipayOrder)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).CreateKRAlipayOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/createKRAlipayOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).CreateKRAlipayOrder(ctx, req.(*ReqCreateKRAlipayOrder))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -6794,6 +7292,24 @@ func _Lobby_SolveGooglePayOrderV3_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LobbyServer).SolveGooglePayOrderV3(ctx, req.(*ReqSolveGooglePlayOrderV3))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_DeliverAA32Order_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqDeliverAA32Order)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).DeliverAA32Order(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/deliverAA32Order",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).DeliverAA32Order(ctx, req.(*ReqDeliverAA32Order))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -7986,6 +8502,24 @@ func _Lobby_FetchRPGBattleHistory_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Lobby_FetchRPGBattleHistoryV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqFetchRPGBattleHistory)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).FetchRPGBattleHistoryV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/fetchRPGBattleHistoryV2",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).FetchRPGBattleHistoryV2(ctx, req.(*ReqFetchRPGBattleHistory))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Lobby_ReceiveRPGRewards_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReqReceiveRPGRewards)
 	if err := dec(in); err != nil {
@@ -8000,6 +8534,24 @@ func _Lobby_ReceiveRPGRewards_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LobbyServer).ReceiveRPGRewards(ctx, req.(*ReqReceiveRPGRewards))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_ReceiveRPGReward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqReceiveRPGReward)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).ReceiveRPGReward(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/receiveRPGReward",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).ReceiveRPGReward(ctx, req.(*ReqReceiveRPGReward))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -8184,6 +8736,222 @@ func _Lobby_OpenPreChestItem_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Lobby_FetchVoteActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqFetchVoteActivity)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).FetchVoteActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/fetchVoteActivity",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).FetchVoteActivity(ctx, req.(*ReqFetchVoteActivity))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_VoteActivity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqVoteActivity)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).VoteActivity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/voteActivity",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).VoteActivity(ctx, req.(*ReqVoteActivity))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_UnlockActivitySpot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqUnlockActivitySpot)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).UnlockActivitySpot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/unlockActivitySpot",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).UnlockActivitySpot(ctx, req.(*ReqUnlockActivitySpot))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_ReceiveActivitySpotReward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqReceiveActivitySpotReward)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).ReceiveActivitySpotReward(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/receiveActivitySpotReward",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).ReceiveActivitySpotReward(ctx, req.(*ReqReceiveActivitySpotReward))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_DeleteAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCommon)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).DeleteAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/deleteAccount",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).DeleteAccount(ctx, req.(*ReqCommon))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_CancelDeleteAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCommon)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).CancelDeleteAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/cancelDeleteAccount",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).CancelDeleteAccount(ctx, req.(*ReqCommon))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_LogReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqLogReport)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).LogReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/logReport",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).LogReport(ctx, req.(*ReqLogReport))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_BindOauth2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqBindOauth2)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).BindOauth2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/bindOauth2",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).BindOauth2(ctx, req.(*ReqBindOauth2))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_FetchOauth2Info_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqFetchOauth2)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).FetchOauth2Info(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/fetchOauth2Info",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).FetchOauth2Info(ctx, req.(*ReqFetchOauth2))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_SetLoadingImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqSetLoadingImage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).SetLoadingImage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/setLoadingImage",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).SetLoadingImage(ctx, req.(*ReqSetLoadingImage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_FetchShopInterval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCommon)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).FetchShopInterval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/fetchShopInterval",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).FetchShopInterval(ctx, req.(*ReqCommon))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_FetchRecentFriend_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCommon)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).FetchRecentFriend(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/fetchRecentFriend",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).FetchRecentFriend(ctx, req.(*ReqCommon))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Lobby_ServiceDesc is the grpc.ServiceDesc for Lobby service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -8194,6 +8962,14 @@ var Lobby_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "fetchConnectionInfo",
 			Handler:    _Lobby_FetchConnectionInfo_Handler,
+		},
+		{
+			MethodName: "fetchQueueInfo",
+			Handler:    _Lobby_FetchQueueInfo_Handler,
+		},
+		{
+			MethodName: "cancelQueue",
+			Handler:    _Lobby_CancelQueue_Handler,
 		},
 		{
 			MethodName: "signup",
@@ -8824,6 +9600,14 @@ var Lobby_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Lobby_CreateJPSoftbankOrder_Handler,
 		},
 		{
+			MethodName: "createJPPayPayOrder",
+			Handler:    _Lobby_CreateJPPayPayOrder_Handler,
+		},
+		{
+			MethodName: "fetchJPCommonCreditCardOrder",
+			Handler:    _Lobby_FetchJPCommonCreditCardOrder_Handler,
+		},
+		{
 			MethodName: "createENPaypalOrder",
 			Handler:    _Lobby_CreateENPaypalOrder_Handler,
 		},
@@ -8842,6 +9626,26 @@ var Lobby_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "createENAlipayOrder",
 			Handler:    _Lobby_CreateENAlipayOrder_Handler,
+		},
+		{
+			MethodName: "createKRPaypalOrder",
+			Handler:    _Lobby_CreateKRPaypalOrder_Handler,
+		},
+		{
+			MethodName: "createKRMasterCardOrder",
+			Handler:    _Lobby_CreateKRMasterCardOrder_Handler,
+		},
+		{
+			MethodName: "createKRVisaOrder",
+			Handler:    _Lobby_CreateKRVisaOrder_Handler,
+		},
+		{
+			MethodName: "createKRJCBOrder",
+			Handler:    _Lobby_CreateKRJCBOrder_Handler,
+		},
+		{
+			MethodName: "createKRAlipayOrder",
+			Handler:    _Lobby_CreateKRAlipayOrder_Handler,
 		},
 		{
 			MethodName: "createDMMOrder",
@@ -8898,6 +9702,10 @@ var Lobby_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "solveGooglePayOrderV3",
 			Handler:    _Lobby_SolveGooglePayOrderV3_Handler,
+		},
+		{
+			MethodName: "deliverAA32Order",
+			Handler:    _Lobby_DeliverAA32Order_Handler,
 		},
 		{
 			MethodName: "fetchMisc",
@@ -9164,8 +9972,16 @@ var Lobby_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Lobby_FetchRPGBattleHistory_Handler,
 		},
 		{
+			MethodName: "fetchRPGBattleHistoryV2",
+			Handler:    _Lobby_FetchRPGBattleHistoryV2_Handler,
+		},
+		{
 			MethodName: "receiveRPGRewards",
 			Handler:    _Lobby_ReceiveRPGRewards_Handler,
+		},
+		{
+			MethodName: "receiveRPGReward",
+			Handler:    _Lobby_ReceiveRPGReward_Handler,
 		},
 		{
 			MethodName: "buyArenaTicket",
@@ -9206,6 +10022,54 @@ var Lobby_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "openPreChestItem",
 			Handler:    _Lobby_OpenPreChestItem_Handler,
+		},
+		{
+			MethodName: "fetchVoteActivity",
+			Handler:    _Lobby_FetchVoteActivity_Handler,
+		},
+		{
+			MethodName: "voteActivity",
+			Handler:    _Lobby_VoteActivity_Handler,
+		},
+		{
+			MethodName: "unlockActivitySpot",
+			Handler:    _Lobby_UnlockActivitySpot_Handler,
+		},
+		{
+			MethodName: "receiveActivitySpotReward",
+			Handler:    _Lobby_ReceiveActivitySpotReward_Handler,
+		},
+		{
+			MethodName: "deleteAccount",
+			Handler:    _Lobby_DeleteAccount_Handler,
+		},
+		{
+			MethodName: "cancelDeleteAccount",
+			Handler:    _Lobby_CancelDeleteAccount_Handler,
+		},
+		{
+			MethodName: "logReport",
+			Handler:    _Lobby_LogReport_Handler,
+		},
+		{
+			MethodName: "bindOauth2",
+			Handler:    _Lobby_BindOauth2_Handler,
+		},
+		{
+			MethodName: "fetchOauth2Info",
+			Handler:    _Lobby_FetchOauth2Info_Handler,
+		},
+		{
+			MethodName: "setLoadingImage",
+			Handler:    _Lobby_SetLoadingImage_Handler,
+		},
+		{
+			MethodName: "fetchShopInterval",
+			Handler:    _Lobby_FetchShopInterval_Handler,
+		},
+		{
+			MethodName: "fetchRecentFriend",
+			Handler:    _Lobby_FetchRecentFriend_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
