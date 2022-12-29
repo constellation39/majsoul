@@ -8,6 +8,7 @@ import (
 	"github.com/constellation39/majsoul/logger"
 	"go.uber.org/zap"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/constellation39/majsoul/message"
@@ -373,6 +374,10 @@ func (majsoul *Majsoul) Login(account, password string) (*message.ResLogin, erro
 			return nil, err
 		}
 	}
+	var t uint32
+	if strings.Index(account, "@") == -1 {
+		t = 1
+	}
 	loginRes, err := majsoul.LobbyClient.Login(majsoul.Ctx, &message.ReqLogin{
 		Account:   account,
 		Password:  utils.Hash(password),
@@ -398,7 +403,7 @@ func (majsoul *Majsoul) Login(account, password string) (*message.ResLogin, erro
 		GenAccessToken:    true,
 		CurrencyPlatforms: []uint32{2, 6, 8, 10, 11},
 		// 电话1 邮箱0
-		Type:                0,
+		Type:                t,
 		Version:             0,
 		ClientVersionString: majsoul.Version.Web(),
 	})
