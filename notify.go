@@ -16,14 +16,14 @@ func (majsoul *Majsoul) NotifyCaptcha(notify *message.NotifyCaptcha) {
 
 func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart) {
 	var err error
-	majsoul.FastTestConn, err = NewClientConn(majsoul.Ctx, majsoul.ServerAddress.GameAddress)
+	majsoul.FastTestConn, err = NewClientConn(Ctx, majsoul.ServerAddress.GameAddress, majsoul.WebSocketProxy)
 	if err != nil {
 		log.Fatalf("Majsoul.NotifyRoomGameStart Connect to GameServer failed %s", majsoul.ServerAddress.GatewayAddress)
 		return
 	}
 	majsoul.FastTestClient = message.NewFastTestClient(majsoul.FastTestConn)
 	go majsoul.receiveGame()
-	majsoul.GameInfo, err = majsoul.AuthGame(majsoul.Ctx, &message.ReqAuthGame{
+	majsoul.GameInfo, err = majsoul.AuthGame(Ctx, &message.ReqAuthGame{
 		AccountId: majsoul.Account.AccountId,
 		Token:     notify.ConnectToken,
 		GameUuid:  notify.GameUuid,
@@ -32,7 +32,7 @@ func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart)
 		log.Printf("Majsoul.NotifyRoomGameStart AuthGame error: %v \n", err)
 		return
 	}
-	_, err = majsoul.EnterGame(majsoul.Ctx, &message.ReqCommon{})
+	_, err = majsoul.EnterGame(Ctx, &message.ReqCommon{})
 	if err != nil {
 		log.Printf("Majsoul.NotifyRoomGameStart EnterGame error: %v \n", err)
 		return

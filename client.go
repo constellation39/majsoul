@@ -10,14 +10,13 @@ import (
 	"sync"
 
 	"github.com/constellation39/majsoul/message"
-	"github.com/constellation39/majsoul/utils"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
 
 type ClientConn struct {
 	ctx context.Context
-	*utils.WSClient
+	*wsClient
 	msgIndex uint8
 	replys   sync.Map // 回复消息 map[uint8]*Reply
 	notify   chan proto.Message
@@ -28,16 +27,20 @@ type Reply struct {
 	wait chan struct{}
 }
 
-func NewClientConn(ctx context.Context, addr string) (*ClientConn, error) {
+func NewClientConn(ctx context.Context, connAddr, proxyAddr string) (*ClientConn, error) {
 	cConn := &ClientConn{
 		ctx:      ctx,
-		WSClient: utils.NewWSClient(addr),
+		wsClient: nil,
 		notify:   make(chan proto.Message, 32),
 	}
-	err := cConn.WSClient.Connect()
+	var err error
+
+	cConn.wsClient, err = newWSClient(ctx, connAddr, proxyAddr)
+
 	if err != nil {
 		return nil, err
 	}
+
 	go cConn.loop()
 	return cConn, nil
 }
@@ -45,7 +48,7 @@ func NewClientConn(ctx context.Context, addr string) (*ClientConn, error) {
 func (c *ClientConn) loop() {
 receive:
 	for {
-		msg := c.WSClient.Read()
+		msg := c.wsClient.Read()
 		switch msg[0] {
 		case MsgTypeNotify:
 			c.handleNotify(msg)
@@ -141,7 +144,7 @@ func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out
 	buff.WriteByte(c.msgIndex >> 7)
 	buff.Write(body)
 
-	err = c.WSClient.Send(buff.Bytes())
+	err = c.wsClient.Send(buff.Bytes())
 	if err != nil {
 		return err
 	}

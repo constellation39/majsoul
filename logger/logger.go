@@ -4,18 +4,16 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"log"
-	"os"
-	"os/signal"
 	"runtime"
-	"syscall"
+	"sync/atomic"
 )
 
-var logger *zap.Logger
+var logger = struct {
+	*zap.Logger
+	closeFlag int32
+}{}
 
 func init() {
-	signalChan := make(chan os.Signal)
-	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	go signalLoop(signalChan)
 	initLogger(false)
 }
 
@@ -50,23 +48,27 @@ func initLogger(debug bool) {
 		config.Encoding = "console"
 	}
 	var err error
-	logger, err = config.Build(zap.AddStacktrace(zap.ErrorLevel), zap.AddCallerSkip(1))
+	logger.Logger, err = config.Build(zap.AddStacktrace(zap.ErrorLevel), zap.AddCallerSkip(1))
 	if err != nil {
 		log.Fatalf("Failed: initLogger error %+v", err)
 	}
 }
 
-func signalLoop(ch chan os.Signal) {
-	for {
-		select {
-		case sign := <-ch:
-			switch sign {
-			case syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT:
-				if logger != nil {
-					logger.Sync()
-				}
-				return
-			}
+func EnableDevelopment() {
+	initLogger(true)
+}
+
+func EnableProduction() {
+	initLogger(false)
+}
+
+func Sync() {
+	if atomic.LoadInt32(&logger.closeFlag) == 1 {
+		atomic.CompareAndSwapInt32(&logger.closeFlag, 0, 1)
+		err := logger.Sync()
+		if err != nil {
+			log.Printf("%+v", err)
+			return
 		}
 	}
 }
