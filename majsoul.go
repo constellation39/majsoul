@@ -124,6 +124,7 @@ func New(options ...Option) (*Majsoul, error) {
 	majsoul.LobbyConn = conn
 	majsoul.ServerAddress = serverAddress
 	majsoul.Request = r
+	majsoul.Implement = majsoul
 
 	if err != nil {
 		return nil, err
