@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -29,7 +30,14 @@ func newRequest(hostAddr, proxyAddr string) *request {
 			Timeout: time.Second * 5,
 		},
 	}
-	r.AddHeader("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54")
+	if len(proxyAddr) > 0 {
+		proxy := func(_ *http.Request) (*url.URL, error) {
+			return url.Parse(proxyAddr)
+		}
+		transport := &http.Transport{Proxy: proxy}
+		r.client.Transport = transport
+	}
+	r.AddHeader("user-agent", UserAgent)
 	r.AddHeader("accept", "application/json, text/plain, */*")
 	r.AddHeader("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
 	r.AddHeader("cache-control", "no-cache")
