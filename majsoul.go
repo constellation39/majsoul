@@ -419,13 +419,6 @@ func uuid() string {
 }
 
 func (majsoul *Majsoul) Login(account, password string) (*message.ResLogin, error) {
-	if majsoul.UUID == "" {
-		majsoul.UUID = uuid()
-		err := os.WriteFile(uuidFile, []byte(majsoul.UUID), 0644)
-		if err != nil {
-			return nil, err
-		}
-	}
 	var t uint32
 	if strings.Index(account, "@") == -1 {
 		t = 1
@@ -444,8 +437,8 @@ func (majsoul *Majsoul) Login(account, password string) (*message.ResLogin, erro
 			SalePlatform:   "web",
 			HardwareVendor: "",
 			ModelNumber:    "",
-			ScreenWidth:    914,
-			ScreenHeight:   1316,
+			ScreenWidth:    uint32(rand.Int31n(400) + 914),
+			ScreenHeight:   uint32(rand.Int31n(200) + 1316),
 		},
 		RandomKey: majsoul.UUID,
 		ClientVersion: &message.ClientVersionInfo{
