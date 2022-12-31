@@ -37,7 +37,7 @@ func signalLoop(ctx context.Context) context.Context {
 				case syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT:
 					logger.Sync()
 					cancel()
-					log.Printf("Exit.")
+					log.Printf("Try Exit.")
 					return
 				}
 			}
