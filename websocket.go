@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"sync"
 	"time"
 )
 
 type wsClient struct {
+	mu   sync.Mutex
 	conn *websocket.Conn // websocket连接
 }
 
@@ -81,6 +83,8 @@ func (client *wsClient) Read() []byte {
 }
 
 func (client *wsClient) Send(body []byte) error {
+	client.mu.Lock()
+	defer client.mu.Unlock()
 	return client.conn.WriteMessage(websocket.BinaryMessage, body)
 }
 
