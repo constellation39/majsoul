@@ -17,6 +17,7 @@ import (
 type ClientConn struct {
 	ctx context.Context
 	*wsClient
+	mu       sync.Mutex
 	msgIndex uint8
 	replys   sync.Map // 回复消息 map[uint8]*Reply
 	notify   chan proto.Message
@@ -136,6 +137,9 @@ func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out
 	if err != nil {
 		return err
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	buff := new(bytes.Buffer)
 	c.msgIndex %= 255
