@@ -90,6 +90,7 @@ func WebSocketProxy(addr string) Option {
 
 // Majsoul majsoul client
 type Majsoul struct {
+	Ctx                 context.Context
 	message.LobbyClient             // message.LobbyClient 更多时候在大厅时调用的是该接口
 	LobbyConn           *ClientConn // lobbyConn 是 message.LobbyClient 使用的连接
 
@@ -112,7 +113,9 @@ type Majsoul struct {
 
 func New(options ...Option) (*Majsoul, error) {
 
-	majsoul := &Majsoul{}
+	majsoul := &Majsoul{
+		Ctx: Ctx,
+	}
 
 	for _, option := range options {
 		option(majsoul)

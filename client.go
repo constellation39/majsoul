@@ -139,7 +139,6 @@ func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out
 	}
 
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	buff := new(bytes.Buffer)
 	c.msgIndex %= 255
@@ -163,6 +162,8 @@ func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out
 	defer c.replys.Delete(c.msgIndex)
 
 	c.msgIndex++
+
+	c.mu.Unlock()
 
 	select {
 	case <-reply.wait:
