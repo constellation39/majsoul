@@ -117,7 +117,8 @@ type Majsoul struct {
 func New(options ...Option) (*Majsoul, error) {
 
 	majsoul := &Majsoul{
-		Ctx: Ctx,
+		UUID: uuid(),
+		Ctx:  Ctx,
 	}
 
 	for _, option := range options {
