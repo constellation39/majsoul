@@ -3,6 +3,9 @@ package majsoul
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/constellation39/majsoul/logger"
@@ -141,6 +144,11 @@ func New(options ...Option) (*Majsoul, error) {
 
 func lookup(proxy string) (*ServerAddress, *request, *ClientConn, error) {
 	for _, serverAddress := range ServerAddressList {
+		select {
+		case <-Ctx.Done():
+			return nil, nil, nil, nil
+		default:
+		}
 		r := newRequest(serverAddress.ServerAddress, proxy)
 		_, err := r.Get(fmt.Sprintf("1/version.json?randv=%d", int(rand.Float32()*1000000000)+int(rand.Float32()*1000000000)))
 		if err != nil {
@@ -195,7 +203,6 @@ func (majsoul *Majsoul) version() (*Version, error) {
 func (majsoul *Majsoul) heatbeat() {
 	t3 := time.NewTicker(time.Second * 3)
 	t2 := time.NewTicker(time.Second * 2)
-loop:
 	for {
 		select {
 		case <-t3.C:
@@ -217,7 +224,7 @@ loop:
 				return
 			}
 		case <-Ctx.Done():
-			break loop
+			return
 		}
 	}
 }
@@ -407,8 +414,6 @@ func (majsoul *Majsoul) handleNotify(data proto.Message) {
 	}
 }
 
-// message.LobbyClient
-
 func uuid() string {
 	csl := len(charSet)
 	b := make([]byte, 36)
@@ -421,6 +426,16 @@ func uuid() string {
 	}
 	return string(b)
 }
+
+// hashPassword password with hmac sha256
+// return hash string
+func hashPassword(data string) string {
+	hash := hmac.New(sha256.New, []byte("lailai"))
+	hash.Write([]byte(data))
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+// message.LobbyClient
 
 func (majsoul *Majsoul) Login(account, password string) (*message.ResLogin, error) {
 	var t uint32
