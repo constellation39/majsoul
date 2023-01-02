@@ -50,6 +50,10 @@ func (c *ClientConn) loop() {
 receive:
 	for {
 		msg := c.wsClient.Read()
+		if len(msg) == 0 {
+			logger.Info("msg is null")
+			continue
+		}
 		switch msg[0] {
 		case MsgTypeNotify:
 			c.handleNotify(msg)
