@@ -47,7 +47,6 @@ func NewClientConn(ctx context.Context, connAddr, proxyAddr string) (*ClientConn
 }
 
 func (c *ClientConn) loop() {
-receive:
 	for {
 		msg := c.wsClient.Read()
 		if len(msg) == 0 {
@@ -64,7 +63,7 @@ receive:
 		}
 		select {
 		case <-c.ctx.Done():
-			break receive
+			return
 		default:
 		}
 	}

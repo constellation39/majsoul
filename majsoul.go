@@ -147,7 +147,7 @@ func lookup(proxy string) (*ServerAddress, *request, *ClientConn, error) {
 	for _, serverAddress := range ServerAddressList {
 		select {
 		case <-Ctx.Done():
-			return nil, nil, nil, nil
+			return nil, nil, nil, fmt.Errorf("interruptions during server lookup")
 		default:
 		}
 		r := newRequest(serverAddress.ServerAddress, proxy)
