@@ -95,10 +95,10 @@ func WebSocketProxy(addr string) Option {
 type Majsoul struct {
 	Ctx                 context.Context
 	message.LobbyClient         // message.LobbyClient 更多时候在大厅时调用的是该接口
-	LobbyConn           *Client // lobbyConn 是 message.LobbyClient 使用的连接
+	LobbyConn           *client // lobbyConn 是 message.LobbyClient 使用的连接
 
 	message.FastTestClient         // message.FastTestClient 场景处于游戏桌面时调用该接口
-	FastTestConn           *Client // fastTestConn 是 message.FastTestClient 使用的连接
+	FastTestConn           *client // fastTestConn 是 message.FastTestClient 使用的连接
 
 	Implement     Implement // 使得程序可以以多态的方式调用 message.LobbyClient 或 message.FastTestClient 的接口
 	UUID          string
@@ -143,7 +143,7 @@ func New(options ...Option) (*Majsoul, error) {
 	return majsoul, nil
 }
 
-func lookup(proxy string) (*ServerAddress, *request, *Client, error) {
+func lookup(proxy string) (*ServerAddress, *request, *client, error) {
 	for _, serverAddress := range ServerAddressList {
 		select {
 		case <-Ctx.Done():
@@ -155,7 +155,7 @@ func lookup(proxy string) (*ServerAddress, *request, *Client, error) {
 		if err != nil {
 			continue
 		}
-		cConn, err := NewClientConn(Ctx, serverAddress.GatewayAddress, proxy)
+		cConn, err := newClientConn(Ctx, serverAddress.GatewayAddress, proxy)
 		if err != nil {
 			continue
 		}

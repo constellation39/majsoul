@@ -3,11 +3,11 @@ package majsoul
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/constellation39/majsoul/logger"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
-	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -20,16 +20,34 @@ import (
 	"google.golang.org/grpc"
 )
 
-type Client struct {
-	ctx       context.Context
-	connAddr  string
-	proxyAddr string
-	conn      *websocket.Conn
-	mu        sync.Mutex
-	msgIndex  uint8
-	replyMap  sync.Map // 回复消息 map[uint8]*Reply
-	notify    chan proto.Message
-	reConn    chan struct{}
+var (
+	ErrNotConnected   = errors.New("websocket not connected")
+	ErrUrlWrongScheme = errors.New("websocket uri must start with ws or wss scheme")
+	//ErrCantConnect           = errors.New("websocket can't connect")
+)
+
+type client struct {
+	ctx context.Context
+
+	Reconnect          bool
+	ReconnectInterval  time.Duration
+	ReconnectNumber    int
+	curReconnectNumber int
+
+	dialer        *websocket.Dialer
+	connAddr      string
+	proxyAddr     string
+	requestHeader http.Header
+
+	conn         *websocket.Conn
+	httpResponse *http.Response
+	isConnected  bool
+
+	msgIndex uint8
+	replyMap sync.Map // map[uint8]*Reply
+	notify   chan proto.Message
+
+	mu sync.Mutex
 }
 
 type Reply struct {
@@ -37,34 +55,59 @@ type Reply struct {
 	wait chan struct{}
 }
 
-func NewClientConn(ctx context.Context, connAddr, proxyAddr string) (*Client, error) {
-	client := &Client{
-		ctx:       ctx,
-		connAddr:  connAddr,
-		proxyAddr: proxyAddr,
-		conn:      nil,
-		mu:        sync.Mutex{},
-		msgIndex:  0,
-		replyMap:  sync.Map{},
-		notify:    make(chan proto.Message, 32),
+func newClientConn(ctx context.Context, connAddr, proxyAddr string) (*client, error) {
+	c := &client{
+		ctx:                ctx,
+		Reconnect:          false,
+		ReconnectInterval:  0,
+		ReconnectNumber:    0,
+		curReconnectNumber: 0,
+		dialer:             nil,
+		connAddr:           connAddr,
+		proxyAddr:          proxyAddr,
+		requestHeader:      nil,
+		conn:               nil,
+		httpResponse:       nil,
+		isConnected:        false,
+		msgIndex:           0,
+		replyMap:           sync.Map{},
+		notify:             make(chan proto.Message, 32),
+		mu:                 sync.Mutex{},
 	}
-	var err error
 
-	client.conn, err = newConn(ctx, connAddr, proxyAddr)
+	dialer, header, err := newDialer(c.connAddr, c.proxyAddr)
 
 	if err != nil {
 		return nil, err
 	}
 
-	go client.readLoop()
-	return client, nil
+	c.requestHeader = header
+	c.dialer = dialer
+
+	c.connect()
+
+	if err != nil {
+		return nil, err
+	}
+
+	go c.readLoop()
+
+	return c, nil
 }
 
-func newConn(ctx context.Context, connAddr, proxyAddr string) (*websocket.Conn, error) {
+func newDialer(connAddr, proxyAddr string) (*websocket.Dialer, http.Header, error) {
 	connUrl, err := url.Parse(connAddr)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	if connUrl.Scheme != "ws" && connUrl.Scheme != "wss" {
+		return nil, nil, ErrUrlWrongScheme
+	}
+
+	if err != nil {
+		return nil, nil, err
 	}
 
 	dialer := &websocket.Dialer{
@@ -95,34 +138,66 @@ func newConn(ctx context.Context, connAddr, proxyAddr string) (*websocket.Conn, 
 	header.Add("Pragma", "no-cache")
 	header.Add("User-Agent", UserAgent)
 
-	conn, response, err := dialer.DialContext(ctx, connAddr, header)
+	return dialer, header, nil
 
-	if err != nil {
-		return nil, err
-	}
-
-	defer func(Body io.ReadCloser) {
-		err = Body.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(response.Body)
-
-	return conn, nil
 }
 
-func (client *Client) readLoop() {
-	var t int
-	var payload []byte
-	var err error
-	for {
-		t, payload, err = client.conn.ReadMessage()
+func (client *client) close() {
+	client.mu.Lock()
+	if client.conn != nil {
+		err := client.conn.Close()
 		if err != nil {
-			logger.Error("Client.readLoop", zap.Error(err))
+			logger.Error("client.conn.Close()", zap.Error(err))
+		}
+	}
+	client.isConnected = false
+	client.mu.Unlock()
+}
+
+func (client *client) connect() {
+	for {
+		conn, response, err := client.dialer.DialContext(client.ctx, client.connAddr, client.requestHeader)
+
+		if err != nil {
+			time.Sleep(client.ReconnectInterval)
+			if client.ReconnectNumber == 0 {
+				break
+			}
+			client.curReconnectNumber++
+			if client.curReconnectNumber == client.ReconnectNumber {
+				break
+			}
+			continue
+		}
+
+		client.mu.Lock()
+		client.conn = conn
+		client.httpResponse = response
+		client.isConnected = true
+		client.mu.Unlock()
+		break
+	}
+}
+
+func (client *client) IsConnected() bool {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+
+	return client.isConnected
+}
+
+func (client *client) readLoop() {
+	if !client.IsConnected() {
+		return
+	}
+	for {
+		t, payload, err := client.conn.ReadMessage()
+		if err != nil {
+			logger.Error("client.readLoop", zap.Error(err))
 			break
 		}
 		if t != websocket.BinaryMessage {
-			logger.Info("Client.readLoop t != websocket.BinaryMessage", zap.Int("t", t))
+			logger.Info("client.readLoop t != websocket.BinaryMessage", zap.Int("t", t))
 			continue
 		}
 		switch payload[0] {
@@ -131,7 +206,7 @@ func (client *Client) readLoop() {
 		case MsgTypeResponse:
 			client.handleResponse(payload)
 		default:
-			logger.Info("Client.readLoop unknown msg type: ", zap.Uint8("value", payload[0]))
+			logger.Info("client.readLoop unknown msg type: ", zap.Uint8("value", payload[0]))
 		}
 		select {
 		case <-client.ctx.Done():
@@ -139,70 +214,71 @@ func (client *Client) readLoop() {
 		default:
 		}
 	}
-	err = client.conn.Close()
-	if err != nil {
-		logger.Error("client.conn.Close()", zap.Error(err))
-		return
-	}
+	client.close()
+	client.connect()
 }
 
-func (client *Client) handleNotify(msg []byte) {
+func (client *client) handleNotify(msg []byte) {
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[1:], wrapper)
 	if err != nil {
-		logger.Error("Client.handleNotify unmarshal error: ", zap.Error(err))
+		logger.Error("client.handleNotify unmarshal error: ", zap.Error(err))
 		return
 	}
 	pm := message.GetNotifyType(wrapper.Name)
 	if pm == nil {
-		logger.Error("Client.handleNotify unknown notify type: ", zap.String("wrapper.Name", wrapper.Name))
+		logger.Error("client.handleNotify unknown notify type: ", zap.String("wrapper.Name", wrapper.Name))
 		return
 	}
 	err = proto.Unmarshal(wrapper.Data, pm)
 	if err != nil {
-		logger.Error("Client.handleNotify unmarshal error: ", zap.Error(err))
+		logger.Error("client.handleNotify unmarshal error: ", zap.Error(err))
 		return
 	}
 	client.notify <- pm
 }
 
-func (client *Client) handleResponse(msg []byte) {
+func (client *client) handleResponse(msg []byte) {
 	key := (msg[2] << 7) + msg[1]
 	v, ok := client.replyMap.Load(key)
 	if !ok {
-		logger.Error("Client.handleResponse not found key: ", zap.Uint8("key", key))
+		logger.Error("client.handleResponse not found key: ", zap.Uint8("key", key))
 		return
 	}
 	reply, ok := v.(*Reply)
 	if !ok {
-		logger.Error("Client.handleResponse rv not proto.Message: ", zap.Reflect("reply", reply))
+		logger.Error("client.handleResponse rv not proto.Message: ", zap.Reflect("reply", reply))
 		return
 	}
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[3:], wrapper)
 	if err != nil {
-		logger.Error("Client.handleResponse unmarshal error: ", zap.Error(err))
+		logger.Error("client.handleResponse unmarshal error: ", zap.Error(err))
 		return
 	}
 	err = proto.Unmarshal(wrapper.Data, reply.out)
 	if err != nil {
-		logger.Error("Client.handleResponse unmarshal error: ", zap.Error(err))
+		logger.Error("client.handleResponse unmarshal error: ", zap.Error(err))
 		return
 	}
 	close(reply.wait)
 }
 
-func (client *Client) Receive() <-chan proto.Message {
+func (client *client) Receive() <-chan proto.Message {
 	return client.notify
 }
 
-func (client *Client) Invoke(ctx context.Context, method string, in interface{}, out interface{}, opts ...grpc.CallOption) error {
+func (client *client) Invoke(ctx context.Context, method string, in interface{}, out interface{}, opts ...grpc.CallOption) error {
 	tokens := strings.Split(method, "/")
 	api := strings.Join(tokens, ".")
 	return client.Send(ctx, api, in.(proto.Message), out.(proto.Message))
 }
 
-func (client *Client) Send(ctx context.Context, api string, in proto.Message, out proto.Message) error {
+func (client *client) Send(ctx context.Context, api string, in proto.Message, out proto.Message) error {
+	if !client.IsConnected() {
+		return ErrNotConnected
+	}
+
 	body, err := proto.Marshal(in.(proto.Message))
 	if err != nil {
 		return err
@@ -253,6 +329,6 @@ func (client *Client) Send(ctx context.Context, api string, in proto.Message, ou
 	return nil
 }
 
-func (client *Client) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+func (client *client) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 	panic("implement me")
 }

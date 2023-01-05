@@ -16,7 +16,7 @@ func (majsoul *Majsoul) NotifyCaptcha(notify *message.NotifyCaptcha) {
 
 func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart) {
 	var err error
-	majsoul.FastTestConn, err = NewClientConn(Ctx, majsoul.ServerAddress.GameAddress, majsoul.WebSocketProxy)
+	majsoul.FastTestConn, err = newClientConn(Ctx, majsoul.ServerAddress.GameAddress, majsoul.WebSocketProxy)
 	if err != nil {
 		log.Fatalf("Majsoul.NotifyRoomGameStart Connect to GameServer failed %s", majsoul.ServerAddress.GatewayAddress)
 		return
