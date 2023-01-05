@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -90,7 +89,7 @@ func (request *request) do(req *http.Request) ([]byte, error) {
 			panic(err)
 		}
 	}(res.Body)
-	resData, err := ioutil.ReadAll(res.Body)
+	resData, err := io.ReadAll(res.Body)
 
 	if err != nil {
 		return nil, err
