@@ -60,7 +60,7 @@ func newClientConn(ctx context.Context, connAddr, proxyAddr string) (*client, er
 		ctx:                ctx,
 		Reconnect:          false,
 		ReconnectInterval:  0,
-		ReconnectNumber:    0,
+		ReconnectNumber:    -1,
 		curReconnectNumber: 0,
 		dialer:             nil,
 		connAddr:           connAddr,
