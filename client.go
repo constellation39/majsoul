@@ -139,6 +139,11 @@ func (client *Client) readLoop() {
 		default:
 		}
 	}
+	err = client.conn.Close()
+	if err != nil {
+		logger.Error("client.conn.Close()", zap.Error(err))
+		return
+	}
 }
 
 func (client *Client) handleNotify(msg []byte) {
