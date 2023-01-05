@@ -5,22 +5,31 @@ import (
 	"context"
 	"fmt"
 	"github.com/constellation39/majsoul/logger"
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/constellation39/majsoul/message"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
 
-type ClientConn struct {
-	ctx context.Context
-	*wsClient
-	mu       sync.Mutex
-	msgIndex uint8
-	replys   sync.Map // 回复消息 map[uint8]*Reply
-	notify   chan proto.Message
+type Client struct {
+	ctx       context.Context
+	connAddr  string
+	proxyAddr string
+	conn      *websocket.Conn
+	mu        sync.Mutex
+	msgIndex  uint8
+	replyMap  sync.Map // 回复消息 map[uint8]*Reply
+	notify    chan proto.Message
+	reConn    chan struct{}
 }
 
 type Reply struct {
@@ -28,104 +37,167 @@ type Reply struct {
 	wait chan struct{}
 }
 
-func NewClientConn(ctx context.Context, connAddr, proxyAddr string) (*ClientConn, error) {
-	cConn := &ClientConn{
-		ctx:      ctx,
-		wsClient: nil,
-		notify:   make(chan proto.Message, 32),
+func NewClientConn(ctx context.Context, connAddr, proxyAddr string) (*Client, error) {
+	client := &Client{
+		ctx:       ctx,
+		connAddr:  connAddr,
+		proxyAddr: proxyAddr,
+		conn:      nil,
+		mu:        sync.Mutex{},
+		msgIndex:  0,
+		replyMap:  sync.Map{},
+		notify:    make(chan proto.Message, 32),
 	}
 	var err error
 
-	cConn.wsClient, err = newWSClient(ctx, connAddr, proxyAddr)
+	client.conn, err = newConn(ctx, connAddr, proxyAddr)
 
 	if err != nil {
 		return nil, err
 	}
 
-	go cConn.loop()
-	return cConn, nil
+	go client.readLoop()
+	return client, nil
 }
 
-func (c *ClientConn) loop() {
+func newConn(ctx context.Context, connAddr, proxyAddr string) (*websocket.Conn, error) {
+	connUrl, err := url.Parse(connAddr)
+
+	if err != nil {
+		return nil, err
+	}
+
+	dialer := &websocket.Dialer{
+		NetDial:           nil,
+		NetDialContext:    nil,
+		NetDialTLSContext: nil,
+		Proxy: func(request *http.Request) (*url.URL, error) {
+			return url.Parse(proxyAddr)
+		},
+		TLSClientConfig:   nil,
+		HandshakeTimeout:  45 * time.Second,
+		ReadBufferSize:    0,
+		WriteBufferSize:   0,
+		WriteBufferPool:   nil,
+		Subprotocols:      nil,
+		EnableCompression: false,
+		Jar:               nil,
+	}
+
+	dialer.Jar, _ = cookiejar.New(nil)
+
+	header := http.Header{}
+	header.Add("Accept-Encoding", "gzip, deflate, br")
+	header.Add("Accept-Language", "zh-CN,zh;q=0.9,ja;q=0.8,en;q=0.7,en-GB;q=0.6,en-US;q=0.5")
+	header.Add("Cache-Control", "no-cache")
+	header.Add("Host", connUrl.Host)
+	//header.Add("Origin", originAddr)
+	header.Add("Pragma", "no-cache")
+	header.Add("User-Agent", UserAgent)
+
+	conn, response, err := dialer.DialContext(ctx, connAddr, header)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(response.Body)
+
+	return conn, nil
+}
+
+func (client *Client) readLoop() {
+	var t int
+	var payload []byte
+	var err error
 	for {
-		msg := c.wsClient.Read()
-		if len(msg) == 0 {
-			logger.Info("msg is null")
+		t, payload, err = client.conn.ReadMessage()
+		if err != nil {
+			logger.Error("Client.readLoop", zap.Error(err))
+			break
+		}
+		if t != websocket.BinaryMessage {
+			logger.Info("Client.readLoop t != websocket.BinaryMessage", zap.Int("t", t))
 			continue
 		}
-		switch msg[0] {
+		switch payload[0] {
 		case MsgTypeNotify:
-			c.handleNotify(msg)
+			client.handleNotify(payload)
 		case MsgTypeResponse:
-			c.handleResponse(msg)
+			client.handleResponse(payload)
 		default:
-			logger.Info("ClientConn.loop unknown msg type: ", zap.Uint8("value", msg[0]))
+			logger.Info("Client.readLoop unknown msg type: ", zap.Uint8("value", payload[0]))
 		}
 		select {
-		case <-c.ctx.Done():
+		case <-client.ctx.Done():
 			return
 		default:
 		}
 	}
 }
 
-func (c *ClientConn) handleNotify(msg []byte) {
+func (client *Client) handleNotify(msg []byte) {
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[1:], wrapper)
 	if err != nil {
-		logger.Error("ClientConn.handleNotify unmarshal error: ", zap.Error(err))
+		logger.Error("Client.handleNotify unmarshal error: ", zap.Error(err))
 		return
 	}
 	pm := message.GetNotifyType(wrapper.Name)
 	if pm == nil {
-		logger.Error("ClientConn.handleNotify unknown notify type: ", zap.String("wrapper.Name", wrapper.Name))
+		logger.Error("Client.handleNotify unknown notify type: ", zap.String("wrapper.Name", wrapper.Name))
 		return
 	}
 	err = proto.Unmarshal(wrapper.Data, pm)
 	if err != nil {
-		logger.Error("ClientConn.handleNotify unmarshal error: ", zap.Error(err))
+		logger.Error("Client.handleNotify unmarshal error: ", zap.Error(err))
 		return
 	}
-	c.notify <- pm
+	client.notify <- pm
 }
 
-func (c *ClientConn) handleResponse(msg []byte) {
+func (client *Client) handleResponse(msg []byte) {
 	key := (msg[2] << 7) + msg[1]
-	v, ok := c.replys.Load(key)
+	v, ok := client.replyMap.Load(key)
 	if !ok {
-		logger.Error("ClientConn.handleResponse not found key: ", zap.Uint8("key", key))
+		logger.Error("Client.handleResponse not found key: ", zap.Uint8("key", key))
 		return
 	}
 	reply, ok := v.(*Reply)
 	if !ok {
-		logger.Error("ClientConn.handleResponse rv not proto.Message: ", zap.Reflect("reply", reply))
+		logger.Error("Client.handleResponse rv not proto.Message: ", zap.Reflect("reply", reply))
 		return
 	}
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[3:], wrapper)
 	if err != nil {
-		logger.Error("ClientConn.handleResponse unmarshal error: ", zap.Error(err))
+		logger.Error("Client.handleResponse unmarshal error: ", zap.Error(err))
 		return
 	}
 	err = proto.Unmarshal(wrapper.Data, reply.out)
 	if err != nil {
-		logger.Error("ClientConn.handleResponse unmarshal error: ", zap.Error(err))
+		logger.Error("Client.handleResponse unmarshal error: ", zap.Error(err))
 		return
 	}
 	close(reply.wait)
 }
 
-func (c *ClientConn) Receive() <-chan proto.Message {
-	return c.notify
+func (client *Client) Receive() <-chan proto.Message {
+	return client.notify
 }
 
-func (c *ClientConn) Invoke(ctx context.Context, method string, in interface{}, out interface{}, opts ...grpc.CallOption) error {
+func (client *Client) Invoke(ctx context.Context, method string, in interface{}, out interface{}, opts ...grpc.CallOption) error {
 	tokens := strings.Split(method, "/")
 	api := strings.Join(tokens, ".")
-	return c.Send(ctx, api, in.(proto.Message), out.(proto.Message))
+	return client.Send(ctx, api, in.(proto.Message), out.(proto.Message))
 }
 
-func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out proto.Message) error {
+func (client *Client) Send(ctx context.Context, api string, in proto.Message, out proto.Message) error {
 	body, err := proto.Marshal(in.(proto.Message))
 	if err != nil {
 		return err
@@ -141,16 +213,16 @@ func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out
 		return err
 	}
 
-	c.mu.Lock()
+	client.mu.Lock()
 
 	buff := new(bytes.Buffer)
-	c.msgIndex %= 255
+	client.msgIndex %= 255
 	buff.WriteByte(MsgTypeRequest)
-	buff.WriteByte(c.msgIndex - (c.msgIndex >> 7 << 7))
-	buff.WriteByte(c.msgIndex >> 7)
+	buff.WriteByte(client.msgIndex - (client.msgIndex >> 7 << 7))
+	buff.WriteByte(client.msgIndex >> 7)
 	buff.Write(body)
 
-	err = c.wsClient.Send(buff.Bytes())
+	err = client.conn.WriteMessage(websocket.BinaryMessage, buff.Bytes())
 	if err != nil {
 		return err
 	}
@@ -159,14 +231,14 @@ func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out
 		out:  out.(proto.Message),
 		wait: make(chan struct{}),
 	}
-	if _, ok := c.replys.LoadOrStore(c.msgIndex, reply); ok {
-		return fmt.Errorf("index exists %d", c.msgIndex)
+	if _, ok := client.replyMap.LoadOrStore(client.msgIndex, reply); ok {
+		return fmt.Errorf("index exists %d", client.msgIndex)
 	}
-	defer c.replys.Delete(c.msgIndex)
+	defer client.replyMap.Delete(client.msgIndex)
 
-	c.msgIndex++
+	client.msgIndex++
 
-	c.mu.Unlock()
+	client.mu.Unlock()
 
 	select {
 	case <-reply.wait:
@@ -176,6 +248,6 @@ func (c *ClientConn) Send(ctx context.Context, api string, in proto.Message, out
 	return nil
 }
 
-func (c *ClientConn) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+func (client *Client) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
 	panic("implement me")
 }
