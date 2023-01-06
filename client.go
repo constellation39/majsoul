@@ -213,7 +213,7 @@ func (client *client) readLoop() {
 		}
 	}
 	client.close()
-	client.connect()
+	//client.connect()
 }
 
 func (client *client) handleNotify(msg []byte) {
