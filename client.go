@@ -213,6 +213,7 @@ func (client *client) readLoop() {
 		}
 	}
 	client.close()
+	// 连接后应该鉴权
 	//client.connect()
 }
 
