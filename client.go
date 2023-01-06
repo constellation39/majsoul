@@ -334,10 +334,8 @@ func (client *client) SendMsg(api string, in proto.Message) (_ *Reply, err error
 
 func (client *client) RecvMsg(ctx context.Context, reply *Reply) error {
 	defer client.replyMap.Delete(reply.msgIndex)
-
 	select {
 	case <-ctx.Done():
-	case <-client.ctx.Done():
 	case <-reply.wait:
 	}
 	return ctx.Err()
