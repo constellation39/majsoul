@@ -159,11 +159,8 @@ func (client *client) connect() {
 
 		if err != nil {
 			time.Sleep(client.ReconnectInterval)
-			if client.ReconnectNumber == 0 {
-				break
-			}
-			client.curReconnectNumber++
-			if client.curReconnectNumber == client.ReconnectNumber {
+			if client.ReconnectNumber == 0 || client.curReconnectNumber == client.ReconnectNumber {
+				logger.Error("reConnect failed", zap.String("connAdder", client.connAddr), zap.String("connAdder", client.proxyAddr))
 				break
 			}
 			continue
