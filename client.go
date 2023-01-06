@@ -23,7 +23,6 @@ import (
 var (
 	ErrNotConnected   = errors.New("websocket not connected")
 	ErrUrlWrongScheme = errors.New("websocket uri must start with ws or wss scheme")
-	//ErrCantConnect           = errors.New("websocket can't connect")
 )
 
 type client struct {
@@ -51,8 +50,10 @@ type client struct {
 }
 
 type Reply struct {
-	out  proto.Message
-	wait chan struct{}
+	out      proto.Message
+	wait     chan struct{}
+	msgIndex uint8
+	timeOut  bool
 }
 
 func newClientConn(ctx context.Context, connAddr, proxyAddr string) (*client, error) {
@@ -89,8 +90,6 @@ func newClientConn(ctx context.Context, connAddr, proxyAddr string) (*client, er
 	if err != nil {
 		return nil, err
 	}
-
-	go c.readLoop()
 
 	return c, nil
 }
@@ -177,6 +176,8 @@ func (client *client) connect() {
 		client.mu.Unlock()
 		break
 	}
+
+	go client.readLoop()
 }
 
 func (client *client) IsConnected() bool {
@@ -193,7 +194,7 @@ func (client *client) readLoop() {
 	for {
 		t, payload, err := client.conn.ReadMessage()
 		if err != nil {
-			logger.Error("client.readLoop", zap.Error(err))
+			logger.Error("client.readLoop", zap.String("connAdder", client.connAddr), zap.String("connAdder", client.proxyAddr), zap.Error(err))
 			break
 		}
 		if t != websocket.BinaryMessage {
@@ -242,7 +243,6 @@ func (client *client) handleResponse(msg []byte) {
 	key := (msg[2] << 7) + msg[1]
 	v, ok := client.replyMap.Load(key)
 	if !ok {
-		logger.Error("client.handleResponse not found key: ", zap.Uint8("key", key))
 		return
 	}
 	reply, ok := v.(*Reply)
@@ -271,17 +271,28 @@ func (client *client) Receive() <-chan proto.Message {
 func (client *client) Invoke(ctx context.Context, method string, in interface{}, out interface{}, opts ...grpc.CallOption) error {
 	tokens := strings.Split(method, "/")
 	api := strings.Join(tokens, ".")
-	return client.Send(ctx, api, in.(proto.Message), out.(proto.Message))
-}
 
-func (client *client) Send(ctx context.Context, api string, in proto.Message, out proto.Message) error {
-	if !client.IsConnected() {
-		return ErrNotConnected
-	}
-
-	body, err := proto.Marshal(in.(proto.Message))
+	reply, err := client.SendMsg(api, in.(proto.Message))
 	if err != nil {
 		return err
+	}
+	reply.out = out.(proto.Message)
+
+	return client.RecvMsg(ctx, reply)
+}
+
+func (client *client) SendMsg(api string, in proto.Message) (_ *Reply, err error) {
+	err = ErrNotConnected
+
+	if !client.IsConnected() {
+		return
+	}
+
+	var body []byte
+
+	body, err = proto.Marshal(in)
+	if err != nil {
+		return
 	}
 
 	wrapper := &message.Wrapper{
@@ -291,11 +302,10 @@ func (client *client) Send(ctx context.Context, api string, in proto.Message, ou
 
 	body, err = proto.Marshal(wrapper)
 	if err != nil {
-		return err
+		return
 	}
 
 	client.mu.Lock()
-
 	buff := new(bytes.Buffer)
 	client.msgIndex %= 255
 	buff.WriteByte(MsgTypeRequest)
@@ -304,29 +314,36 @@ func (client *client) Send(ctx context.Context, api string, in proto.Message, ou
 	buff.Write(body)
 
 	err = client.conn.WriteMessage(websocket.BinaryMessage, buff.Bytes())
+
 	if err != nil {
-		return err
+		return
 	}
 
 	reply := &Reply{
-		out:  out.(proto.Message),
-		wait: make(chan struct{}),
+		out:      nil,
+		wait:     make(chan struct{}),
+		msgIndex: client.msgIndex,
 	}
-	if _, ok := client.replyMap.LoadOrStore(client.msgIndex, reply); ok {
-		return fmt.Errorf("index exists %d", client.msgIndex)
-	}
-	defer client.replyMap.Delete(client.msgIndex)
 
 	client.msgIndex++
-
 	client.mu.Unlock()
 
-	select {
-	case <-reply.wait:
-	case <-ctx.Done():
-		return ctx.Err()
+	if _, ok := client.replyMap.LoadOrStore(reply.msgIndex, reply); ok {
+		return nil, fmt.Errorf("index exists %d", reply.msgIndex)
 	}
-	return nil
+
+	return reply, nil
+}
+
+func (client *client) RecvMsg(ctx context.Context, reply *Reply) error {
+	defer client.replyMap.Delete(reply.msgIndex)
+
+	select {
+	case <-ctx.Done():
+	case <-client.ctx.Done():
+	case <-reply.wait:
+	}
+	return ctx.Err()
 }
 
 func (client *client) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
