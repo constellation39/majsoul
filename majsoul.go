@@ -7,47 +7,25 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/constellation39/majsoul/logger"
 	"go.uber.org/zap"
-	"log"
 	"math/rand"
-	"os"
-	"os/signal"
+	"net/http"
+	"net/url"
 	"strings"
-	"syscall"
+	"sync"
 	"time"
 
 	"github.com/constellation39/majsoul/message"
 	"github.com/golang/protobuf/proto"
 )
 
-var Ctx context.Context
-
-func init() {
-	Ctx = signalLoop(context.Background())
-}
-
-func signalLoop(ctx context.Context) context.Context {
-	signalChan := make(chan os.Signal)
-	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	ctx, cancel := context.WithCancel(ctx)
-	go func() {
-		for {
-			select {
-			case sign := <-signalChan:
-				switch sign {
-				case syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT:
-					logger.Sync()
-					cancel()
-					log.Printf("Try Exit.")
-					return
-				}
-			}
-		}
-	}()
-	return ctx
-}
+var (
+	ErrorShutdownSignal    = errors.New("receive shutdown signal")
+	ErrorNoServerAvailable = errors.New("no server available")
+)
 
 const (
 	MsgTypeNotify   uint8 = 1
@@ -77,100 +55,145 @@ type Implement interface {
 	IFAction // IFAction  游戏桌面内下发
 }
 
-type Option func(msoul *Majsoul)
-
-func HttpProxy(addr string) Option {
-	return func(msoul *Majsoul) {
-		msoul.HttpProxy = addr
-	}
+type Config struct {
+	ServerAddressList []*ServerAddress
+	ServerProxy       string
+	GatewayProxy      string
+	GameProxy         string
+	Reconnect         bool
+	ReconnectInterval time.Duration
+	ReconnectNumber   int
 }
 
-func WebSocketProxy(addr string) Option {
-	return func(msoul *Majsoul) {
-		msoul.WebSocketProxy = addr
-	}
+type State struct {
+	Login bool
 }
 
-// Majsoul majsoul client
+// Majsoul majsoul wsClient
 type Majsoul struct {
-	Ctx                 context.Context
-	message.LobbyClient         // message.LobbyClient 更多时候在大厅时调用的是该接口
-	LobbyConn           *client // lobbyConn 是 message.LobbyClient 使用的连接
+	Ctx    context.Context
+	cancel context.CancelFunc
 
-	message.FastTestClient         // message.FastTestClient 场景处于游戏桌面时调用该接口
-	FastTestConn           *client // fastTestConn 是 message.FastTestClient 使用的连接
+	message.LobbyClient           // message.LobbyClient 更多时候在大厅时调用的是该接口
+	LobbyConn           *wsClient // lobbyConn 是 message.LobbyClient 使用的连接
 
-	Implement     Implement // 使得程序可以以多态的方式调用 message.LobbyClient 或 message.FastTestClient 的接口
-	UUID          string
+	message.FastTestClient           // message.FastTestClient 场景处于游戏桌面时调用该接口
+	FastTestConn           *wsClient // fastTestConn 是 message.FastTestClient 使用的连接
+
+	Implement Implement // 使得程序可以以多态的方式调用 message.LobbyClient 或 message.FastTestClient 的接口
+	UUID      string
+
 	ServerAddress *ServerAddress
+	Request       *request // 用于直接向http(s)请求
+	Version       *Version // 初始化时获取的版本信息
 
-	Request *request // 用于直接向http(s)请求
-	Version *Version // 初始化时获取的版本信息
-
+	Config   *Config
+	State    *State
 	Account  *message.Account     // 该字段应在登录成功后访问
 	GameInfo *message.ResAuthGame // 该字段应在进入游戏桌面后访问
 
-	HttpProxy      string
-	WebSocketProxy string
+	once sync.Once
 }
 
-func New(options ...Option) (*Majsoul, error) {
-
-	majsoul := &Majsoul{
-		UUID: uuid(),
-		Ctx:  Ctx,
+func New(config *Config) (majsoul *Majsoul, err error) {
+	majsoul = &Majsoul{
+		Config: config,
+		State:  &State{},
+		UUID:   uuid(),
 	}
 
-	for _, option := range options {
-		option(majsoul)
+	majsoul.Ctx, majsoul.cancel = context.WithCancel(context.Background())
+
+	if len(config.ServerAddressList) == 0 {
+		config.ServerAddressList = ServerAddressList
 	}
 
-	serverAddress, r, conn, err := lookup(majsoul.WebSocketProxy)
-
-	majsoul.LobbyClient = message.NewLobbyClient(conn)
-	majsoul.LobbyConn = conn
-	majsoul.ServerAddress = serverAddress
-	majsoul.Request = r
-	majsoul.Implement = majsoul
-
+	err = majsoul.tryNew()
 	if err != nil {
 		return nil, err
 	}
 
-	majsoul.init()
+	err = majsoul.init()
+	if err != nil {
+		return nil, err
+	}
+
 	go majsoul.heatbeat()
 	go majsoul.receiveConn()
 	return majsoul, nil
 }
 
-func lookup(proxy string) (*ServerAddress, *request, *client, error) {
-	for _, serverAddress := range ServerAddressList {
+func (majsoul *Majsoul) Close() {
+	majsoul.once.Do(func() {
+		majsoul.cancel()
+		if majsoul.LobbyConn != nil {
+			majsoul.LobbyConn.Close()
+		}
+		if majsoul.FastTestConn != nil {
+			majsoul.FastTestConn.Close()
+		}
+	})
+}
+
+func (majsoul *Majsoul) tryNew() (err error) {
+	for _, serverAddress := range majsoul.Config.ServerAddressList {
 		select {
-		case <-Ctx.Done():
-			return nil, nil, nil, fmt.Errorf("interruptions during server lookup")
+		case <-majsoul.Ctx.Done():
+			return ErrorShutdownSignal
 		default:
 		}
-		r := newRequest(serverAddress.ServerAddress, proxy)
+
+		var connUrl *url.URL
+		connUrl, err = url.Parse(serverAddress.ServerAddress)
+
+		if err != nil {
+			continue
+		}
+
+		header := http.Header{}
+		header.Add("Accept-Encoding", "gzip, deflate, br")
+		header.Add("Accept-Language", "zh-CN,zh;q=0.9,ja;q=0.8,en;q=0.7,en-GB;q=0.6,en-US;q=0.5")
+		header.Add("Cache-Control", "no-cache")
+		header.Add("Host", connUrl.Host)
+		header.Add("Origin", serverAddress.ServerAddress)
+		header.Add("Pragma", "no-cache")
+		header.Add("User-Agent", UserAgent)
+
+		r := newRequest(serverAddress.ServerAddress, majsoul.Config.ServerProxy)
 		_, err := r.Get(fmt.Sprintf("1/version.json?randv=%d", int(rand.Float32()*1000000000)+int(rand.Float32()*1000000000)))
 		if err != nil {
 			continue
 		}
-		cConn, err := newClientConn(Ctx, serverAddress.GatewayAddress, proxy)
+		client := newWsClient(&wsConfig{
+			connAddr:          serverAddress.GatewayAddress,
+			proxyAddr:         majsoul.Config.GatewayProxy,
+			HTTPHeader:        header,
+			Reconnect:         majsoul.Config.Reconnect,
+			ReconnectInterval: majsoul.Config.ReconnectInterval,
+			ReconnectNumber:   majsoul.Config.ReconnectNumber,
+		})
+		err = client.Connect(majsoul.Ctx)
 		if err != nil {
 			continue
 		}
-		return serverAddress, r, cConn, nil
+		client.HandleReConn = majsoul.ReConn
+		majsoul.ServerAddress = serverAddress
+		majsoul.Request = r
+		majsoul.LobbyConn = client
+		majsoul.LobbyClient = message.NewLobbyClient(client)
+		majsoul.Implement = majsoul
+		return nil
 	}
-	return nil, nil, nil, fmt.Errorf("no servers were found that could be used")
+	return ErrorNoServerAvailable
 }
 
-func (majsoul *Majsoul) init() {
-	var err error
-	majsoul.Version, err = majsoul.version()
+func (majsoul *Majsoul) ReConn() {
+	//majsoul.LobbyClient.Oauth2Check()
+}
 
-	if err != nil {
-		logger.Panic("Majsoul.init version error:", zap.Error(err))
-	}
+func (majsoul *Majsoul) init() (err error) {
+	majsoul.Version, err = majsoul.version()
+	return
 }
 
 type Version struct {
@@ -188,7 +211,7 @@ func (v *Version) Web() string {
 
 func (majsoul *Majsoul) version() (*Version, error) {
 	// var version_url = "version.json?randv="+Math.floor(Math.random() * 1000000000).toString()+Math.floor(Math.random() * 1000000000).toString()
-	r := int(rand.Float32()*1000000000) + int(rand.Float32()*1000000000)
+	r := int(rand.Float32()*1e9) + int(rand.Float32()*1e9)
 	body, err := majsoul.Request.Get(fmt.Sprintf("1/version.json?randv=%d", r))
 	if err != nil {
 		return nil, err
@@ -210,7 +233,7 @@ func (majsoul *Majsoul) heatbeat() {
 			if majsoul.FastTestConn != nil {
 				continue
 			}
-			_, err := majsoul.Heatbeat(Ctx, &message.ReqHeatBeat{})
+			_, err := majsoul.Heatbeat(majsoul.Ctx, &message.ReqHeatBeat{})
 			if err != nil {
 				logger.Error("Majsoul.heatbeat error:", zap.Error(err))
 				return
@@ -219,13 +242,11 @@ func (majsoul *Majsoul) heatbeat() {
 			if majsoul.FastTestConn == nil {
 				continue
 			}
-			_, err := majsoul.CheckNetworkDelay(Ctx, &message.ReqCommon{})
+			_, err := majsoul.CheckNetworkDelay(majsoul.Ctx, &message.ReqCommon{})
 			if err != nil {
 				logger.Error("Majsoul.checkNetworkDelay error:", zap.Error(err))
 				return
 			}
-		case <-Ctx.Done():
-			return
 		}
 	}
 }
@@ -443,7 +464,7 @@ func (majsoul *Majsoul) Login(account, password string) (*message.ResLogin, erro
 	if strings.Index(account, "@") == -1 {
 		t = 1
 	}
-	loginRes, err := majsoul.LobbyClient.Login(Ctx, &message.ReqLogin{
+	loginRes, err := majsoul.LobbyClient.Login(majsoul.Ctx, &message.ReqLogin{
 		Account:   account,
 		Password:  hashPassword(password),
 		Reconnect: false,
@@ -475,7 +496,10 @@ func (majsoul *Majsoul) Login(account, password string) (*message.ResLogin, erro
 	if err != nil {
 		return nil, err
 	}
-	majsoul.Account = loginRes.Account
+	if loginRes.Error != nil {
+		majsoul.Account = loginRes.Account
+		majsoul.State.Login = true
+	}
 	return loginRes, nil
 }
 

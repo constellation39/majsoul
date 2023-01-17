@@ -2,11 +2,12 @@ package majsoul
 
 import (
 	"github.com/constellation39/majsoul/logger"
-	"go.uber.org/zap"
-	"log"
-
 	"github.com/constellation39/majsoul/message"
 	"github.com/golang/protobuf/proto"
+	"go.uber.org/zap"
+	"log"
+	"net/http"
+	"net/url"
 )
 
 // IFNotify is the interface that must be implemented by a receiver.
@@ -15,15 +16,37 @@ func (majsoul *Majsoul) NotifyCaptcha(notify *message.NotifyCaptcha) {
 }
 
 func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart) {
-	var err error
-	majsoul.FastTestConn, err = newClientConn(Ctx, majsoul.ServerAddress.GameAddress, majsoul.WebSocketProxy)
+
+	connUrl, err := url.Parse(majsoul.ServerAddress.GameAddress)
+
+	if err != nil {
+		logger.Error("url.Parse failed", zap.String("GameAddress", majsoul.ServerAddress.GameAddress), zap.Error(err))
+	}
+
+	header := http.Header{}
+	header.Add("Accept-Encoding", "gzip, deflate, br")
+	header.Add("Accept-Language", "zh-CN,zh;q=0.9,ja;q=0.8,en;q=0.7,en-GB;q=0.6,en-US;q=0.5")
+	header.Add("Cache-Control", "no-cache")
+	header.Add("Host", connUrl.Host)
+	header.Add("Origin", majsoul.ServerAddress.ServerAddress)
+	header.Add("Pragma", "no-cache")
+	header.Add("User-Agent", UserAgent)
+
+	majsoul.FastTestConn = newWsClient(&wsConfig{
+		connAddr:          majsoul.ServerAddress.GameAddress,
+		proxyAddr:         majsoul.Config.GameProxy,
+		HTTPHeader:        header,
+		Reconnect:         majsoul.Config.Reconnect,
+		ReconnectInterval: majsoul.Config.ReconnectInterval,
+		ReconnectNumber:   majsoul.Config.ReconnectNumber,
+	})
 	if err != nil {
 		log.Fatalf("Majsoul.NotifyRoomGameStart Connect to GameServer failed %s", majsoul.ServerAddress.GatewayAddress)
 		return
 	}
 	majsoul.FastTestClient = message.NewFastTestClient(majsoul.FastTestConn)
 	go majsoul.receiveGame()
-	majsoul.GameInfo, err = majsoul.AuthGame(Ctx, &message.ReqAuthGame{
+	majsoul.GameInfo, err = majsoul.AuthGame(majsoul.Ctx, &message.ReqAuthGame{
 		AccountId: majsoul.Account.AccountId,
 		Token:     notify.ConnectToken,
 		GameUuid:  notify.GameUuid,
@@ -32,7 +55,7 @@ func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart)
 		log.Printf("Majsoul.NotifyRoomGameStart AuthGame error: %v \n", err)
 		return
 	}
-	_, err = majsoul.EnterGame(Ctx, &message.ReqCommon{})
+	_, err = majsoul.EnterGame(majsoul.Ctx, &message.ReqCommon{})
 	if err != nil {
 		log.Printf("Majsoul.NotifyRoomGameStart EnterGame error: %v \n", err)
 		return

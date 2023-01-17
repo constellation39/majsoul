@@ -18,7 +18,15 @@ type Majsoul struct {
 
 // NewMajsoul 创建一个 Majsoul 结构
 func NewMajsoul() *Majsoul {
-	mj, err := majsoul.New()
+	mj, err := majsoul.New(&majsoul.Config{
+		ServerAddressList: nil,
+		ServerProxy:       "",
+		GatewayProxy:      "",
+		GameProxy:         "",
+		Reconnect:         true,
+		ReconnectInterval: time.Second,
+		ReconnectNumber:   3,
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -29,7 +37,7 @@ func NewMajsoul() *Majsoul {
 
 func main() {
 	mSoul := NewMajsoul()
-	resLogin, err := mSoul.Login("account", "password")
+	resLogin, err := mSoul.Login("1601198895@qq.com", "miku39..")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,16 +50,13 @@ func main() {
 		log.Println("在游戏中")
 	}
 
-	friendList, err := mSoul.FetchFriendList(majsoul.Ctx, &message.ReqCommon{})
+	friendList, err := mSoul.FetchFriendList(mSoul.Ctx, &message.ReqCommon{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	log.Printf("好友列表: %+v", friendList)
 
-	select {
-	case <-majsoul.Ctx.Done():
-	}
 }
 
 func (mSoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart) {
@@ -108,7 +113,7 @@ func (mSoul *Majsoul) NotifyClientMessage(notify *message.NotifyClientMessage) {
 	}
 
 	// 加入房间
-	_, err = mSoul.JoinRoom(majsoul.Ctx, &message.ReqJoinRoom{
+	_, err = mSoul.JoinRoom(mSoul.Ctx, &message.ReqJoinRoom{
 		RoomId:              invitationRoom.RoomID,
 		ClientVersionString: mSoul.Version.Web(),
 	})
@@ -118,7 +123,7 @@ func (mSoul *Majsoul) NotifyClientMessage(notify *message.NotifyClientMessage) {
 	}
 
 	// 准备
-	_, err = mSoul.ReadyPlay(majsoul.Ctx, &message.ReqRoomReady{Ready: true})
+	_, err = mSoul.ReadyPlay(mSoul.Ctx, &message.ReqRoomReady{Ready: true})
 	if err != nil {
 		log.Printf("%+v", err)
 		return
@@ -127,7 +132,7 @@ func (mSoul *Majsoul) NotifyClientMessage(notify *message.NotifyClientMessage) {
 
 // NotifyEndGameVote 有人发起投降
 func (mSoul *Majsoul) NotifyEndGameVote(notify *message.NotifyEndGameVote) {
-	_, err := mSoul.VoteGameEnd(majsoul.Ctx, &message.ReqVoteGameEnd{Yes: true})
+	_, err := mSoul.VoteGameEnd(mSoul.Ctx, &message.ReqVoteGameEnd{Yes: true})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -142,7 +147,7 @@ func (mSoul *Majsoul) ActionNewRound(action *message.ActionNewRound) {
 	// 如果是庄家
 	if len(action.Tiles) == 14 {
 		time.Sleep(time.Second * 3)
-		_, err := mSoul.InputOperation(majsoul.Ctx, &message.ReqSelfOperation{
+		_, err := mSoul.InputOperation(mSoul.Ctx, &message.ReqSelfOperation{
 			Type:    majsoul.Discard, // 打出牌
 			Tile:    mSoul.tiles[len(mSoul.tiles)-1],
 			Moqie:   true,
@@ -162,7 +167,7 @@ func (mSoul *Majsoul) ActionDealTile(action *message.ActionDealTile) {
 	if action.Seat != mSoul.seat {
 		return
 	}
-	_, err := mSoul.InputOperation(majsoul.Ctx, &message.ReqSelfOperation{
+	_, err := mSoul.InputOperation(mSoul.Ctx, &message.ReqSelfOperation{
 		Type:      majsoul.Discard, // 打出牌
 		Tile:      action.Tile,
 		Moqie:     true,
@@ -181,7 +186,7 @@ func (mSoul *Majsoul) ActionDiscardTile(action *message.ActionDiscardTile) {
 	if action.Operation != nil {
 		return
 	}
-	_, err := mSoul.InputOperation(majsoul.Ctx, &message.ReqSelfOperation{
+	_, err := mSoul.InputOperation(mSoul.Ctx, &message.ReqSelfOperation{
 		CancelOperation: true, // 取消操作
 		Timeuse:         1,
 	})
