@@ -12,4 +12,4 @@
 go get -u github.com/constellation39/majsoul
 ```
 
-完整的示例文件在 [example](https://github.com/constellation39/majsoul/tree/master/example) 文件中
+示例文件在 [example](https://github.com/constellation39/majsoul/tree/master/example) 文件中
