@@ -104,6 +104,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 		CompressionMode:      0,
 		CompressionThreshold: 0,
 	})
+	conn.SetReadLimit(1048576)
 	if err != nil {
 		go client.reConnect(ctx)
 		return err
