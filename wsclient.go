@@ -70,10 +70,7 @@ func newWsClient(config *wsConfig) *wsClient {
 func (client *wsClient) Close() {
 	client.mu.Lock()
 	if client.conn != nil {
-		err := client.conn.Close(websocket.StatusNormalClosure, "")
-		if err != nil {
-			logger.Error("wsClient.conn.Close()", zap.Error(err))
-		}
+		_ = client.conn.Close(websocket.StatusNormalClosure, "")
 	}
 	client.open = false
 	client.mu.Unlock()
@@ -85,16 +82,15 @@ func (client *wsClient) reConnect(ctx context.Context) {
 	}
 	for {
 		time.Sleep(client.ReconnectInterval)
+		client.curReconnectNumber++
+		if client.curReconnectNumber >= client.ReconnectNumber {
+			break
+		}
+
 		if client.Connect(ctx) == nil {
-			client.curReconnectNumber = 0
 			if client.HandleReConn != nil {
 				client.HandleReConn()
 			}
-			return
-		}
-		client.curReconnectNumber++
-		if client.curReconnectNumber == client.ReconnectNumber {
-			break
 		}
 	}
 }
