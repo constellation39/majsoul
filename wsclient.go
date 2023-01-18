@@ -82,6 +82,7 @@ func (client *wsClient) reConnect(ctx context.Context) {
 		return
 	}
 	for {
+		time.Sleep(client.ReconnectInterval)
 		if client.Connect(ctx) == nil {
 			client.curReconnectNumber = 0
 			if client.HandleReConn != nil {
@@ -105,7 +106,6 @@ func (client *wsClient) Connect(ctx context.Context) error {
 		CompressionThreshold: 0,
 	})
 	if err != nil {
-		go client.reConnect(ctx)
 		return err
 	}
 	client.mu.Lock()

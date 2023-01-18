@@ -172,11 +172,11 @@ func (majsoul *Majsoul) tryNew() (err error) {
 			ReconnectInterval: majsoul.Config.ReconnectInterval,
 			ReconnectNumber:   majsoul.Config.ReconnectNumber,
 		})
+		client.HandleReConn = majsoul.ReConn
 		err = client.Connect(majsoul.Ctx)
 		if err != nil {
 			continue
 		}
-		client.HandleReConn = majsoul.ReConn
 		majsoul.ServerAddress = serverAddress
 		majsoul.Request = r
 		majsoul.LobbyConn = client
