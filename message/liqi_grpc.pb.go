@@ -253,6 +253,8 @@ type LobbyClient interface {
 	RefreshGameObserveAuth(ctx context.Context, in *ReqRefreshGameObserveAuth, opts ...grpc.CallOption) (*ResRefreshGameObserveAuth, error)
 	FetchActivityBuff(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResActivityBuff, error)
 	UpgradeActivityBuff(ctx context.Context, in *ReqUpgradeActivityBuff, opts ...grpc.CallOption) (*ResActivityBuff, error)
+	UpgradeActivityLevel(ctx context.Context, in *ReqUpgradeActivityLevel, opts ...grpc.CallOption) (*ResUpgradeActivityLevel, error)
+	ReceiveUpgradeActivityReward(ctx context.Context, in *ReqReceiveUpgradeActivityReward, opts ...grpc.CallOption) (*ResReceiveUpgradeActivityReward, error)
 	UpgradeChallenge(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResUpgradeChallenge, error)
 	RefreshChallenge(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResRefreshChallenge, error)
 	FetchChallengeInfo(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchChallengeInfo, error)
@@ -286,7 +288,8 @@ type LobbyClient interface {
 	FeedActivityFeed(ctx context.Context, in *ReqFeedActivityFeed, opts ...grpc.CallOption) (*ResFeedActivityFeed, error)
 	SendActivityGiftToFriend(ctx context.Context, in *ReqSendActivityGiftToFriend, opts ...grpc.CallOption) (*ResSendActivityGiftToFriend, error)
 	ReceiveActivityGift(ctx context.Context, in *ReqReceiveActivityGift, opts ...grpc.CallOption) (*ResCommon, error)
-	FetchFriendFeedActivityData(ctx context.Context, in *ReqFetchFriendFeedActivityData, opts ...grpc.CallOption) (*ResFetchFriendFeedActivityData, error)
+	ReceiveAllActivityGift(ctx context.Context, in *ReqReceiveAllActivityGift, opts ...grpc.CallOption) (*ResReceiveAllActivityGift, error)
+	FetchFriendGiftActivityData(ctx context.Context, in *ReqFetchFriendGiftActivityData, opts ...grpc.CallOption) (*ResFetchFriendGiftActivityData, error)
 	OpenPreChestItem(ctx context.Context, in *ReqOpenPreChestItem, opts ...grpc.CallOption) (*ResOpenPreChestItem, error)
 	FetchVoteActivity(ctx context.Context, in *ReqFetchVoteActivity, opts ...grpc.CallOption) (*ResFetchVoteActivity, error)
 	VoteActivity(ctx context.Context, in *ReqVoteActivity, opts ...grpc.CallOption) (*ResVoteActivity, error)
@@ -299,6 +302,7 @@ type LobbyClient interface {
 	FetchOauth2Info(ctx context.Context, in *ReqFetchOauth2, opts ...grpc.CallOption) (*ResFetchOauth2, error)
 	SetLoadingImage(ctx context.Context, in *ReqSetLoadingImage, opts ...grpc.CallOption) (*ResCommon, error)
 	FetchShopInterval(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchShopInterval, error)
+	FetchActivityInterval(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchActivityInterval, error)
 	FetchRecentFriend(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchrecentFriend, error)
 }
 
@@ -2389,6 +2393,24 @@ func (c *lobbyClient) UpgradeActivityBuff(ctx context.Context, in *ReqUpgradeAct
 	return out, nil
 }
 
+func (c *lobbyClient) UpgradeActivityLevel(ctx context.Context, in *ReqUpgradeActivityLevel, opts ...grpc.CallOption) (*ResUpgradeActivityLevel, error) {
+	out := new(ResUpgradeActivityLevel)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/upgradeActivityLevel", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) ReceiveUpgradeActivityReward(ctx context.Context, in *ReqReceiveUpgradeActivityReward, opts ...grpc.CallOption) (*ResReceiveUpgradeActivityReward, error) {
+	out := new(ResReceiveUpgradeActivityReward)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/receiveUpgradeActivityReward", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *lobbyClient) UpgradeChallenge(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResUpgradeChallenge, error) {
 	out := new(ResUpgradeChallenge)
 	err := c.cc.Invoke(ctx, "/lq.Lobby/upgradeChallenge", in, out, opts...)
@@ -2686,9 +2708,18 @@ func (c *lobbyClient) ReceiveActivityGift(ctx context.Context, in *ReqReceiveAct
 	return out, nil
 }
 
-func (c *lobbyClient) FetchFriendFeedActivityData(ctx context.Context, in *ReqFetchFriendFeedActivityData, opts ...grpc.CallOption) (*ResFetchFriendFeedActivityData, error) {
-	out := new(ResFetchFriendFeedActivityData)
-	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchFriendFeedActivityData", in, out, opts...)
+func (c *lobbyClient) ReceiveAllActivityGift(ctx context.Context, in *ReqReceiveAllActivityGift, opts ...grpc.CallOption) (*ResReceiveAllActivityGift, error) {
+	out := new(ResReceiveAllActivityGift)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/receiveAllActivityGift", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) FetchFriendGiftActivityData(ctx context.Context, in *ReqFetchFriendGiftActivityData, opts ...grpc.CallOption) (*ResFetchFriendGiftActivityData, error) {
+	out := new(ResFetchFriendGiftActivityData)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchFriendGiftActivityData", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2797,6 +2828,15 @@ func (c *lobbyClient) SetLoadingImage(ctx context.Context, in *ReqSetLoadingImag
 func (c *lobbyClient) FetchShopInterval(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchShopInterval, error) {
 	out := new(ResFetchShopInterval)
 	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchShopInterval", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lobbyClient) FetchActivityInterval(ctx context.Context, in *ReqCommon, opts ...grpc.CallOption) (*ResFetchActivityInterval, error) {
+	out := new(ResFetchActivityInterval)
+	err := c.cc.Invoke(ctx, "/lq.Lobby/fetchActivityInterval", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -3047,6 +3087,8 @@ type LobbyServer interface {
 	RefreshGameObserveAuth(context.Context, *ReqRefreshGameObserveAuth) (*ResRefreshGameObserveAuth, error)
 	FetchActivityBuff(context.Context, *ReqCommon) (*ResActivityBuff, error)
 	UpgradeActivityBuff(context.Context, *ReqUpgradeActivityBuff) (*ResActivityBuff, error)
+	UpgradeActivityLevel(context.Context, *ReqUpgradeActivityLevel) (*ResUpgradeActivityLevel, error)
+	ReceiveUpgradeActivityReward(context.Context, *ReqReceiveUpgradeActivityReward) (*ResReceiveUpgradeActivityReward, error)
 	UpgradeChallenge(context.Context, *ReqCommon) (*ResUpgradeChallenge, error)
 	RefreshChallenge(context.Context, *ReqCommon) (*ResRefreshChallenge, error)
 	FetchChallengeInfo(context.Context, *ReqCommon) (*ResFetchChallengeInfo, error)
@@ -3080,7 +3122,8 @@ type LobbyServer interface {
 	FeedActivityFeed(context.Context, *ReqFeedActivityFeed) (*ResFeedActivityFeed, error)
 	SendActivityGiftToFriend(context.Context, *ReqSendActivityGiftToFriend) (*ResSendActivityGiftToFriend, error)
 	ReceiveActivityGift(context.Context, *ReqReceiveActivityGift) (*ResCommon, error)
-	FetchFriendFeedActivityData(context.Context, *ReqFetchFriendFeedActivityData) (*ResFetchFriendFeedActivityData, error)
+	ReceiveAllActivityGift(context.Context, *ReqReceiveAllActivityGift) (*ResReceiveAllActivityGift, error)
+	FetchFriendGiftActivityData(context.Context, *ReqFetchFriendGiftActivityData) (*ResFetchFriendGiftActivityData, error)
 	OpenPreChestItem(context.Context, *ReqOpenPreChestItem) (*ResOpenPreChestItem, error)
 	FetchVoteActivity(context.Context, *ReqFetchVoteActivity) (*ResFetchVoteActivity, error)
 	VoteActivity(context.Context, *ReqVoteActivity) (*ResVoteActivity, error)
@@ -3093,6 +3136,7 @@ type LobbyServer interface {
 	FetchOauth2Info(context.Context, *ReqFetchOauth2) (*ResFetchOauth2, error)
 	SetLoadingImage(context.Context, *ReqSetLoadingImage) (*ResCommon, error)
 	FetchShopInterval(context.Context, *ReqCommon) (*ResFetchShopInterval, error)
+	FetchActivityInterval(context.Context, *ReqCommon) (*ResFetchActivityInterval, error)
 	FetchRecentFriend(context.Context, *ReqCommon) (*ResFetchrecentFriend, error)
 	mustEmbedUnimplementedLobbyServer()
 }
@@ -3794,6 +3838,12 @@ func (UnimplementedLobbyServer) FetchActivityBuff(context.Context, *ReqCommon) (
 func (UnimplementedLobbyServer) UpgradeActivityBuff(context.Context, *ReqUpgradeActivityBuff) (*ResActivityBuff, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpgradeActivityBuff not implemented")
 }
+func (UnimplementedLobbyServer) UpgradeActivityLevel(context.Context, *ReqUpgradeActivityLevel) (*ResUpgradeActivityLevel, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpgradeActivityLevel not implemented")
+}
+func (UnimplementedLobbyServer) ReceiveUpgradeActivityReward(context.Context, *ReqReceiveUpgradeActivityReward) (*ResReceiveUpgradeActivityReward, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReceiveUpgradeActivityReward not implemented")
+}
 func (UnimplementedLobbyServer) UpgradeChallenge(context.Context, *ReqCommon) (*ResUpgradeChallenge, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpgradeChallenge not implemented")
 }
@@ -3893,8 +3943,11 @@ func (UnimplementedLobbyServer) SendActivityGiftToFriend(context.Context, *ReqSe
 func (UnimplementedLobbyServer) ReceiveActivityGift(context.Context, *ReqReceiveActivityGift) (*ResCommon, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReceiveActivityGift not implemented")
 }
-func (UnimplementedLobbyServer) FetchFriendFeedActivityData(context.Context, *ReqFetchFriendFeedActivityData) (*ResFetchFriendFeedActivityData, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method FetchFriendFeedActivityData not implemented")
+func (UnimplementedLobbyServer) ReceiveAllActivityGift(context.Context, *ReqReceiveAllActivityGift) (*ResReceiveAllActivityGift, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReceiveAllActivityGift not implemented")
+}
+func (UnimplementedLobbyServer) FetchFriendGiftActivityData(context.Context, *ReqFetchFriendGiftActivityData) (*ResFetchFriendGiftActivityData, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchFriendGiftActivityData not implemented")
 }
 func (UnimplementedLobbyServer) OpenPreChestItem(context.Context, *ReqOpenPreChestItem) (*ResOpenPreChestItem, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method OpenPreChestItem not implemented")
@@ -3931,6 +3984,9 @@ func (UnimplementedLobbyServer) SetLoadingImage(context.Context, *ReqSetLoadingI
 }
 func (UnimplementedLobbyServer) FetchShopInterval(context.Context, *ReqCommon) (*ResFetchShopInterval, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchShopInterval not implemented")
+}
+func (UnimplementedLobbyServer) FetchActivityInterval(context.Context, *ReqCommon) (*ResFetchActivityInterval, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FetchActivityInterval not implemented")
 }
 func (UnimplementedLobbyServer) FetchRecentFriend(context.Context, *ReqCommon) (*ResFetchrecentFriend, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchRecentFriend not implemented")
@@ -8106,6 +8162,42 @@ func _Lobby_UpgradeActivityBuff_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Lobby_UpgradeActivityLevel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqUpgradeActivityLevel)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).UpgradeActivityLevel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/upgradeActivityLevel",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).UpgradeActivityLevel(ctx, req.(*ReqUpgradeActivityLevel))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_ReceiveUpgradeActivityReward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqReceiveUpgradeActivityReward)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).ReceiveUpgradeActivityReward(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/receiveUpgradeActivityReward",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).ReceiveUpgradeActivityReward(ctx, req.(*ReqReceiveUpgradeActivityReward))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Lobby_UpgradeChallenge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReqCommon)
 	if err := dec(in); err != nil {
@@ -8700,20 +8792,38 @@ func _Lobby_ReceiveActivityGift_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Lobby_FetchFriendFeedActivityData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReqFetchFriendFeedActivityData)
+func _Lobby_ReceiveAllActivityGift_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqReceiveAllActivityGift)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LobbyServer).FetchFriendFeedActivityData(ctx, in)
+		return srv.(LobbyServer).ReceiveAllActivityGift(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/lq.Lobby/fetchFriendFeedActivityData",
+		FullMethod: "/lq.Lobby/receiveAllActivityGift",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LobbyServer).FetchFriendFeedActivityData(ctx, req.(*ReqFetchFriendFeedActivityData))
+		return srv.(LobbyServer).ReceiveAllActivityGift(ctx, req.(*ReqReceiveAllActivityGift))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_FetchFriendGiftActivityData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqFetchFriendGiftActivityData)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).FetchFriendGiftActivityData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/fetchFriendGiftActivityData",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).FetchFriendGiftActivityData(ctx, req.(*ReqFetchFriendGiftActivityData))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -8930,6 +9040,24 @@ func _Lobby_FetchShopInterval_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LobbyServer).FetchShopInterval(ctx, req.(*ReqCommon))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Lobby_FetchActivityInterval_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReqCommon)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LobbyServer).FetchActivityInterval(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lq.Lobby/fetchActivityInterval",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LobbyServer).FetchActivityInterval(ctx, req.(*ReqCommon))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -9884,6 +10012,14 @@ var Lobby_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Lobby_UpgradeActivityBuff_Handler,
 		},
 		{
+			MethodName: "upgradeActivityLevel",
+			Handler:    _Lobby_UpgradeActivityLevel_Handler,
+		},
+		{
+			MethodName: "receiveUpgradeActivityReward",
+			Handler:    _Lobby_ReceiveUpgradeActivityReward_Handler,
+		},
+		{
 			MethodName: "upgradeChallenge",
 			Handler:    _Lobby_UpgradeChallenge_Handler,
 		},
@@ -10016,8 +10152,12 @@ var Lobby_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Lobby_ReceiveActivityGift_Handler,
 		},
 		{
-			MethodName: "fetchFriendFeedActivityData",
-			Handler:    _Lobby_FetchFriendFeedActivityData_Handler,
+			MethodName: "receiveAllActivityGift",
+			Handler:    _Lobby_ReceiveAllActivityGift_Handler,
+		},
+		{
+			MethodName: "fetchFriendGiftActivityData",
+			Handler:    _Lobby_FetchFriendGiftActivityData_Handler,
 		},
 		{
 			MethodName: "openPreChestItem",
@@ -10066,6 +10206,10 @@ var Lobby_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "fetchShopInterval",
 			Handler:    _Lobby_FetchShopInterval_Handler,
+		},
+		{
+			MethodName: "fetchActivityInterval",
+			Handler:    _Lobby_FetchActivityInterval_Handler,
 		},
 		{
 			MethodName: "fetchRecentFriend",

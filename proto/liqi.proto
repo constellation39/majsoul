@@ -67,8 +67,7 @@ message NotifyRoomPlayerUpdate {
   uint32 seq = 6;
 }
 
-message NotifyRoomKickOut {
-}
+message NotifyRoomKickOut {}
 
 message NotifyFriendStateChange {
 
@@ -103,16 +102,11 @@ message NotifyClientMessage {
   string content = 3;
 }
 
-message NotifyAccountUpdate {
+message NotifyAccountUpdate { AccountUpdate update = 1; }
 
-  AccountUpdate update = 1;
-}
+message NotifyAnotherLogin {}
 
-message NotifyAnotherLogin {
-}
-
-message NotifyAccountLogout {
-}
+message NotifyAccountLogout {}
 
 message NotifyAnnouncementUpdate {
 
@@ -125,20 +119,11 @@ message NotifyAnnouncementUpdate {
   }
 }
 
-message NotifyNewMail {
+message NotifyNewMail { Mail mail = 1; }
 
-  Mail mail = 1;
-}
+message NotifyDeleteMail { repeated uint32 mail_id_list = 1; }
 
-message NotifyDeleteMail {
-
-  repeated uint32 mail_id_list = 1;
-}
-
-message NotifyReviveCoinUpdate {
-
-  bool has_gained = 1;
-}
+message NotifyReviveCoinUpdate { bool has_gained = 1; }
 
 message NotifyDailyTaskUpdate {
 
@@ -147,20 +132,11 @@ message NotifyDailyTaskUpdate {
   uint32 refresh_count = 3;
 }
 
-message NotifyActivityTaskUpdate {
+message NotifyActivityTaskUpdate { repeated TaskProgress progresses = 1; }
 
-  repeated TaskProgress progresses = 1;
-}
+message NotifyActivityPeriodTaskUpdate { repeated TaskProgress progresses = 1; }
 
-message NotifyActivityPeriodTaskUpdate {
-
-  repeated TaskProgress progresses = 1;
-}
-
-message NotifyAccountRandomTaskUpdate {
-
-  repeated TaskProgress progresses = 1;
-}
+message NotifyAccountRandomTaskUpdate { repeated TaskProgress progresses = 1; }
 
 message NotifyActivitySegmentTaskUpdate {
 
@@ -207,21 +183,13 @@ message NotifyAccountChallengeTaskUpdate {
   repeated uint32 rewarded_season = 6;
 }
 
-message NotifyNewComment {
-}
+message NotifyNewComment {}
 
-message NotifyRollingNotice {
+message NotifyRollingNotice { repeated RollingNotice notice = 1; }
 
-  repeated RollingNotice notice = 1;
-}
+message NotifyGiftSendRefresh {}
 
-message NotifyGiftSendRefresh {
-}
-
-message NotifyShopUpdate {
-
-  ShopInfo shop_info = 1;
-}
+message NotifyShopUpdate { ShopInfo shop_info = 1; }
 
 message NotifyVipLevelChange {
 
@@ -233,10 +201,7 @@ message NotifyVipLevelChange {
   uint32 record_collect_limit = 6;
 }
 
-message NotifyServerSetting {
-
-  ServerSettings settings = 1;
-}
+message NotifyServerSetting { ServerSettings settings = 1; }
 
 message NotifyPayResult {
 
@@ -272,10 +237,7 @@ message NotifyCustomContestSystemMsg {
   CustomizedContestGameEnd game_end = 5;
 }
 
-message NotifyMatchTimeout {
-
-  string sid = 1;
-}
+message NotifyMatchTimeout { string sid = 1; }
 
 message NotifyCustomContestState {
 
@@ -296,8 +258,7 @@ message NotifyAFKResult {
   string game_uuid = 3;
 }
 
-message NotifyLoginQueueFinished {
-}
+message NotifyLoginQueueFinished {}
 
 message NotifyGameFinishRewardV2 {
 
@@ -393,13 +354,9 @@ message NetworkEndpoint {
   uint32 port = 3;
 }
 
-message ReqCommon {
-}
+message ReqCommon {}
 
-message ResCommon {
-
-  Error error = 1;
-}
+message ResCommon { Error error = 1; }
 
 message ResAccountUpdate {
 
@@ -407,10 +364,7 @@ message ResAccountUpdate {
   AccountUpdate update = 2;
 }
 
-message AntiAddiction {
-
-  uint32 online_duration = 1;
-}
+message AntiAddiction { uint32 online_duration = 1; }
 
 message AccountMahjongStatistic {
 
@@ -547,10 +501,7 @@ message Account {
   }
 }
 
-message AccountOwnerData {
-
-  repeated uint32 unlock_characters = 1;
-}
+message AccountOwnerData { repeated uint32 unlock_characters = 1; }
 
 message AccountUpdate {
 
@@ -707,10 +658,7 @@ message PlayerGameView {
   repeated ViewSlot views = 10;
 }
 
-message GameSetting {
-
-  uint32 emoji_switch = 1;
-}
+message GameSetting { uint32 emoji_switch = 1; }
 
 message GameMode {
 
@@ -1170,6 +1118,8 @@ message AccountActivityUpdate {
   repeated lq.RPGActivity rpg_data = 2;
   repeated ActivityFeedData feed_data = 3;
   repeated lq.ActivitySpotData spot_data = 4;
+  repeated lq.ActivityFriendGiftData friend_gift_data = 5;
+  repeated lq.ActivityUpgradeData upgrade_data = 6;
 }
 
 message ActivityFeedData {
@@ -1195,6 +1145,45 @@ message ActivityFeedData {
     uint32 from_account_id = 4;
     uint32 time = 5;
     uint32 received = 6;
+  }
+}
+
+message ActivityFriendGiftData {
+
+  uint32 activity_id = 1;
+  uint32 max_inbox_id = 2;
+  CountWithTimeData receive_data = 3;
+  CountWithTimeData send_data = 4;
+  repeated GiftBoxData gift_inbox = 5;
+
+  message CountWithTimeData {
+
+    uint32 count = 1;
+    uint32 last_update_time = 2;
+    repeated uint32 send_friend_id = 3;
+  }
+
+  message GiftBoxData {
+
+    uint32 id = 1;
+    uint32 item_id = 2;
+    uint32 count = 3;
+    uint32 from_account_id = 4;
+    uint32 time = 5;
+    uint32 received = 6;
+  }
+}
+
+message ActivityUpgradeData {
+
+  uint32 activity_id = 1;
+  repeated LevelGroup groups = 2;
+  uint32 received_level = 3;
+
+  message LevelGroup {
+
+    uint32 group_id = 1;
+    uint32 level = 2;
   }
 }
 
@@ -1246,10 +1235,7 @@ message GameLiveUnit {
   bytes action_data = 3;
 }
 
-message GameLiveSegment {
-
-  repeated GameLiveUnit actions = 1;
-}
+message GameLiveSegment { repeated GameLiveUnit actions = 1; }
 
 message GameLiveSegmentUri {
 
@@ -1266,18 +1252,11 @@ message GameLiveHead {
   repeated uint32 seat_list = 5;
 }
 
-message GameNewRoundState {
+message GameNewRoundState { repeated uint32 seat_states = 1; }
 
-  repeated uint32 seat_states = 1;
-}
+message GameEndAction { uint32 state = 1; }
 
-message GameEndAction {
-
-  uint32 state = 1;
-}
-
-message GameNoopAction {
-}
+message GameNoopAction {}
 
 message CommentItem {
 
@@ -1911,10 +1890,7 @@ message RecordRoundInfo {
   RecordNoTileInfo no_tile_info = 13;
 }
 
-message RecordAnalysisedData {
-
-  repeated RecordRoundInfo round_infos = 1;
-}
+message RecordAnalysisedData { repeated RecordRoundInfo round_infos = 1; }
 
 message VoteData {
 
@@ -1929,284 +1905,357 @@ message ActivityBuffData {
   uint32 level = 5;
 }
 service Lobby {
-  rpc fetchConnectionInfo (ReqCommon) returns (ResConnectionInfo);
-  rpc fetchQueueInfo (ReqCommon) returns (ResFetchQueueInfo);
-  rpc cancelQueue (ReqCommon) returns (ResCommon);
-  rpc signup (ReqSignupAccount) returns (ResSignupAccount);
-  rpc login (ReqLogin) returns (ResLogin);
-  rpc loginSuccess (ReqCommon) returns (ResCommon);
-  rpc emailLogin (ReqEmailLogin) returns (ResLogin);
-  rpc oauth2Auth (ReqOauth2Auth) returns (ResOauth2Auth);
-  rpc oauth2Check (ReqOauth2Check) returns (ResOauth2Check);
-  rpc oauth2Signup (ReqOauth2Signup) returns (ResOauth2Signup);
-  rpc oauth2Login (ReqOauth2Login) returns (ResLogin);
-  rpc dmmPreLogin (ReqDMMPreLogin) returns (ResDMMPreLogin);
-  rpc createPhoneVerifyCode (ReqCreatePhoneVerifyCode) returns (ResCommon);
-  rpc createEmailVerifyCode (ReqCreateEmailVerifyCode) returns (ResCommon);
-  rpc verfifyCodeForSecure (ReqVerifyCodeForSecure) returns (ResVerfiyCodeForSecure);
-  rpc bindPhoneNumber (ReqBindPhoneNumber) returns (ResCommon);
-  rpc unbindPhoneNumber (ReqUnbindPhoneNumber) returns (ResCommon);
-  rpc fetchPhoneLoginBind (ReqCommon) returns (ResFetchPhoneLoginBind);
-  rpc createPhoneLoginBind (ReqCreatePhoneLoginBind) returns (ResCommon);
-  rpc bindEmail (ReqBindEmail) returns (ResCommon);
-  rpc modifyPassword (ReqModifyPassword) returns (ResCommon);
-  rpc bindAccount (ReqBindAccount) returns (ResCommon);
-  rpc logout (ReqLogout) returns (ResLogout);
-  rpc heatbeat (ReqHeatBeat) returns (ResCommon);
-  rpc loginBeat (ReqLoginBeat) returns (ResCommon);
-  rpc createNickname (ReqCreateNickname) returns (ResCommon);
-  rpc modifyNickname (ReqModifyNickname) returns (ResCommon);
-  rpc modifyBirthday (ReqModifyBirthday) returns (ResCommon);
-  rpc fetchRoom (ReqCommon) returns (ResSelfRoom);
-  rpc createRoom (ReqCreateRoom) returns (ResCreateRoom);
-  rpc joinRoom (ReqJoinRoom) returns (ResJoinRoom);
-  rpc leaveRoom (ReqCommon) returns (ResCommon);
-  rpc readyPlay (ReqRoomReady) returns (ResCommon);
-  rpc dressingStatus (ReqRoomDressing) returns (ResCommon);
-  rpc startRoom (ReqRoomStart) returns (ResCommon);
-  rpc kickPlayer (ReqRoomKick) returns (ResCommon);
-  rpc modifyRoom (ReqModifyRoom) returns (ResCommon);
-  rpc matchGame (ReqJoinMatchQueue) returns (ResCommon);
-  rpc cancelMatch (ReqCancelMatchQueue) returns (ResCommon);
-  rpc fetchAccountInfo (ReqAccountInfo) returns (ResAccountInfo);
-  rpc changeAvatar (ReqChangeAvatar) returns (ResCommon);
-  rpc receiveVersionReward (ReqCommon) returns (ResCommon);
-  rpc fetchAccountStatisticInfo (ReqAccountStatisticInfo) returns (ResAccountStatisticInfo);
-  rpc fetchAccountChallengeRankInfo (ReqAccountInfo) returns (ResAccountChallengeRankInfo);
-  rpc fetchAccountCharacterInfo (ReqCommon) returns (ResAccountCharacterInfo);
-  rpc shopPurchase (ReqShopPurchase) returns (ResShopPurchase);
-  rpc fetchGameRecord (ReqGameRecord) returns (ResGameRecord);
-  rpc readGameRecord (ReqGameRecord) returns (ResCommon);
-  rpc fetchGameRecordList (ReqGameRecordList) returns (ResGameRecordList);
-  rpc fetchCollectedGameRecordList (ReqCommon) returns (ResCollectedGameRecordList);
-  rpc fetchGameRecordsDetail (ReqGameRecordsDetail) returns (ResGameRecordsDetail);
-  rpc addCollectedGameRecord (ReqAddCollectedGameRecord) returns (ResAddCollectedGameRecord);
-  rpc removeCollectedGameRecord (ReqRemoveCollectedGameRecord) returns (ResRemoveCollectedGameRecord);
-  rpc changeCollectedGameRecordRemarks (ReqChangeCollectedGameRecordRemarks) returns (ResChangeCollectedGameRecordRemarks);
-  rpc fetchLevelLeaderboard (ReqLevelLeaderboard) returns (ResLevelLeaderboard);
-  rpc fetchChallengeLeaderboard (ReqChallangeLeaderboard) returns (ResChallengeLeaderboard);
-  rpc fetchMutiChallengeLevel (ReqMutiChallengeLevel) returns (ResMutiChallengeLevel);
-  rpc fetchMultiAccountBrief (ReqMultiAccountId) returns (ResMultiAccountBrief);
-  rpc fetchFriendList (ReqCommon) returns (ResFriendList);
-  rpc fetchFriendApplyList (ReqCommon) returns (ResFriendApplyList);
-  rpc applyFriend (ReqApplyFriend) returns (ResCommon);
-  rpc handleFriendApply (ReqHandleFriendApply) returns (ResCommon);
-  rpc removeFriend (ReqRemoveFriend) returns (ResCommon);
-  rpc searchAccountById (ReqSearchAccountById) returns (ResSearchAccountById);
-  rpc searchAccountByPattern (ReqSearchAccountByPattern) returns (ResSearchAccountByPattern);
-  rpc fetchAccountState (ReqAccountList) returns (ResAccountStates);
-  rpc fetchBagInfo (ReqCommon) returns (ResBagInfo);
-  rpc useBagItem (ReqUseBagItem) returns (ResCommon);
-  rpc openManualItem (ReqOpenManualItem) returns (ResCommon);
-  rpc openRandomRewardItem (ReqOpenRandomRewardItem) returns (ResOpenRandomRewardItem);
-  rpc openAllRewardItem (ReqOpenAllRewardItem) returns (ResOpenAllRewardItem);
-  rpc composeShard (ReqComposeShard) returns (ResCommon);
-  rpc fetchAnnouncement (ReqFetchAnnouncement) returns (ResAnnouncement);
-  rpc readAnnouncement (ReqReadAnnouncement) returns (ResCommon);
-  rpc fetchMailInfo (ReqCommon) returns (ResMailInfo);
-  rpc readMail (ReqReadMail) returns (ResCommon);
-  rpc deleteMail (ReqDeleteMail) returns (ResCommon);
-  rpc takeAttachmentFromMail (ReqTakeAttachment) returns (ResCommon);
-  rpc receiveAchievementReward (ReqReceiveAchievementReward) returns (ResReceiveAchievementReward);
-  rpc receiveAchievementGroupReward (ReqReceiveAchievementGroupReward) returns (ResReceiveAchievementGroupReward);
-  rpc fetchAchievementRate (ReqCommon) returns (ResFetchAchievementRate);
-  rpc fetchAchievement (ReqCommon) returns (ResAchievement);
-  rpc buyShiLian (ReqBuyShiLian) returns (ResCommon);
-  rpc matchShiLian (ReqCommon) returns (ResCommon);
-  rpc goNextShiLian (ReqCommon) returns (ResCommon);
-  rpc updateClientValue (ReqUpdateClientValue) returns (ResCommon);
-  rpc fetchClientValue (ReqCommon) returns (ResClientValue);
-  rpc clientMessage (ReqClientMessage) returns (ResCommon);
-  rpc fetchCurrentMatchInfo (ReqCurrentMatchInfo) returns (ResCurrentMatchInfo);
-  rpc userComplain (ReqUserComplain) returns (ResCommon);
-  rpc fetchReviveCoinInfo (ReqCommon) returns (ResReviveCoinInfo);
-  rpc gainReviveCoin (ReqCommon) returns (ResCommon);
-  rpc fetchDailyTask (ReqCommon) returns (ResDailyTask);
-  rpc refreshDailyTask (ReqRefreshDailyTask) returns (ResRefreshDailyTask);
-  rpc useGiftCode (ReqUseGiftCode) returns (ResUseGiftCode);
-  rpc useSpecialGiftCode (ReqUseGiftCode) returns (ResUseSpecialGiftCode);
-  rpc fetchTitleList (ReqCommon) returns (ResTitleList);
-  rpc useTitle (ReqUseTitle) returns (ResCommon);
-  rpc sendClientMessage (ReqSendClientMessage) returns (ResCommon);
-  rpc fetchGameLiveInfo (ReqGameLiveInfo) returns (ResGameLiveInfo);
-  rpc fetchGameLiveLeftSegment (ReqGameLiveLeftSegment) returns (ResGameLiveLeftSegment);
-  rpc fetchGameLiveList (ReqGameLiveList) returns (ResGameLiveList);
-  rpc fetchCommentSetting (ReqCommon) returns (ResCommentSetting);
-  rpc updateCommentSetting (ReqUpdateCommentSetting) returns (ResCommon);
-  rpc fetchCommentList (ReqFetchCommentList) returns (ResFetchCommentList);
-  rpc fetchCommentContent (ReqFetchCommentContent) returns (ResFetchCommentContent);
-  rpc leaveComment (ReqLeaveComment) returns (ResCommon);
-  rpc deleteComment (ReqDeleteComment) returns (ResCommon);
-  rpc updateReadComment (ReqUpdateReadComment) returns (ResCommon);
-  rpc fetchRollingNotice (ReqCommon) returns (ReqRollingNotice);
-  rpc fetchServerTime (ReqCommon) returns (ResServerTime);
-  rpc fetchPlatformProducts (ReqPlatformBillingProducts) returns (ResPlatformBillingProducts);
-  rpc cancelGooglePlayOrder (ReqCancelGooglePlayOrder) returns (ResCommon);
-  rpc openChest (ReqOpenChest) returns (ResOpenChest);
-  rpc buyFromChestShop (ReqBuyFromChestShop) returns (ResBuyFromChestShop);
-  rpc fetchDailySignInInfo (ReqCommon) returns (ResDailySignInInfo);
-  rpc doDailySignIn (ReqCommon) returns (ResCommon);
-  rpc doActivitySignIn (ReqDoActivitySignIn) returns (ResDoActivitySignIn);
-  rpc fetchCharacterInfo (ReqCommon) returns (ResCharacterInfo);
-  rpc updateCharacterSort (ReqUpdateCharacterSort) returns (ResCommon);
-  rpc changeMainCharacter (ReqChangeMainCharacter) returns (ResCommon);
-  rpc changeCharacterSkin (ReqChangeCharacterSkin) returns (ResCommon);
-  rpc changeCharacterView (ReqChangeCharacterView) returns (ResCommon);
-  rpc setHiddenCharacter (ReqSetHiddenCharacter) returns (ResSetHiddenCharacter);
-  rpc sendGiftToCharacter (ReqSendGiftToCharacter) returns (ResSendGiftToCharacter);
-  rpc sellItem (ReqSellItem) returns (ResCommon);
-  rpc fetchCommonView (ReqCommon) returns (ResCommonView);
-  rpc changeCommonView (ReqChangeCommonView) returns (ResCommon);
-  rpc saveCommonViews (ReqSaveCommonViews) returns (ResCommon);
-  rpc fetchCommonViews (ReqCommonViews) returns (ResCommonViews);
-  rpc fetchAllCommonViews (ReqCommon) returns (ResAllcommonViews);
-  rpc useCommonView (ReqUseCommonView) returns (ResCommon);
-  rpc upgradeCharacter (ReqUpgradeCharacter) returns (ResUpgradeCharacter);
-  rpc addFinishedEnding (ReqFinishedEnding) returns (ResCommon);
-  rpc receiveEndingReward (ReqFinishedEnding) returns (ResCommon);
-  rpc gameMasterCommand (ReqGMCommand) returns (ResCommon);
-  rpc fetchShopInfo (ReqCommon) returns (ResShopInfo);
-  rpc buyFromShop (ReqBuyFromShop) returns (ResBuyFromShop);
-  rpc buyFromZHP (ReqBuyFromZHP) returns (ResCommon);
-  rpc refreshZHPShop (ReqReshZHPShop) returns (ResRefreshZHPShop);
-  rpc fetchMonthTicketInfo (ReqCommon) returns (ResMonthTicketInfo);
-  rpc payMonthTicket (ReqPayMonthTicket) returns (ResPayMonthTicket);
-  rpc exchangeCurrency (ReqExchangeCurrency) returns (ResCommon);
-  rpc exchangeChestStone (ReqExchangeCurrency) returns (ResCommon);
-  rpc exchangeDiamond (ReqExchangeCurrency) returns (ResCommon);
-  rpc fetchServerSettings (ReqCommon) returns (ResServerSettings);
-  rpc fetchAccountSettings (ReqCommon) returns (ResAccountSettings);
-  rpc updateAccountSettings (ReqUpdateAccountSettings) returns (ResCommon);
-  rpc fetchModNicknameTime (ReqCommon) returns (ResModNicknameTime);
-  rpc createWechatNativeOrder (ReqCreateWechatNativeOrder) returns (ResCreateWechatNativeOrder);
-  rpc createWechatAppOrder (ReqCreateWechatAppOrder) returns (ResCreateWechatAppOrder);
-  rpc createAlipayOrder (ReqCreateAlipayOrder) returns (ResCreateAlipayOrder);
-  rpc createAlipayScanOrder (ReqCreateAlipayScanOrder) returns (ResCreateAlipayScanOrder);
-  rpc createAlipayAppOrder (ReqCreateAlipayAppOrder) returns (ResCreateAlipayAppOrder);
-  rpc createJPCreditCardOrder (ReqCreateJPCreditCardOrder) returns (ResCreateJPCreditCardOrder);
-  rpc createJPPaypalOrder (ReqCreateJPPaypalOrder) returns (ResCreateJPPaypalOrder);
-  rpc createJPAuOrder (ReqCreateJPAuOrder) returns (ResCreateJPAuOrder);
-  rpc createJPDocomoOrder (ReqCreateJPDocomoOrder) returns (ResCreateJPDocomoOrder);
-  rpc createJPWebMoneyOrder (ReqCreateJPWebMoneyOrder) returns (ResCreateJPWebMoneyOrder);
-  rpc createJPSoftbankOrder (ReqCreateJPSoftbankOrder) returns (ResCreateJPSoftbankOrder);
-  rpc createJPPayPayOrder (ReqCreateJPPayPayOrder) returns (ResCreateJPPayPayOrder);
-  rpc fetchJPCommonCreditCardOrder (ReqFetchJPCommonCreditCardOrder) returns (ResFetchJPCommonCreditCardOrder);
-  rpc createENPaypalOrder (ReqCreateENPaypalOrder) returns (ResCreateENPaypalOrder);
-  rpc createENMasterCardOrder (ReqCreateENMasterCardOrder) returns (ResCreateENMasterCardOrder);
-  rpc createENVisaOrder (ReqCreateENVisaOrder) returns (ResCreateENVisaOrder);
-  rpc createENJCBOrder (ReqCreateENJCBOrder) returns (ResCreateENJCBOrder);
-  rpc createENAlipayOrder (ReqCreateENAlipayOrder) returns (ResCreateENAlipayOrder);
-  rpc createKRPaypalOrder (ReqCreateKRPaypalOrder) returns (ResCreateKRPaypalOrder);
-  rpc createKRMasterCardOrder (ReqCreateKRMasterCardOrder) returns (ResCreateKRMasterCardOrder);
-  rpc createKRVisaOrder (ReqCreateKRVisaOrder) returns (ResCreateKRVisaOrder);
-  rpc createKRJCBOrder (ReqCreateKRJCBOrder) returns (ResCreateKRJCBOrder);
-  rpc createKRAlipayOrder (ReqCreateKRAlipayOrder) returns (ResCreateKRAlipayOrder);
-  rpc createDMMOrder (ReqCreateDMMOrder) returns (ResCreateDmmOrder);
-  rpc createIAPOrder (ReqCreateIAPOrder) returns (ResCreateIAPOrder);
-  rpc createSteamOrder (ReqCreateSteamOrder) returns (ResCreateSteamOrder);
-  rpc verifySteamOrder (ReqVerifySteamOrder) returns (ResCommon);
-  rpc createMyCardAndroidOrder (ReqCreateMyCardOrder) returns (ResCreateMyCardOrder);
-  rpc createMyCardWebOrder (ReqCreateMyCardOrder) returns (ResCreateMyCardOrder);
-  rpc createPaypalOrder (ReqCreatePaypalOrder) returns (ResCreatePaypalOrder);
-  rpc createXsollaOrder (ReqCreateXsollaOrder) returns (ResCreateXsollaOrder);
-  rpc verifyMyCardOrder (ReqVerifyMyCardOrder) returns (ResCommon);
-  rpc verificationIAPOrder (ReqVerificationIAPOrder) returns (ResVerificationIAPOrder);
-  rpc createYostarSDKOrder (ReqCreateYostarOrder) returns (ResCreateYostarOrder);
-  rpc createBillingOrder (ReqCreateBillingOrder) returns (ResCreateBillingOrder);
-  rpc solveGooglePlayOrder (ReqSolveGooglePlayOrder) returns (ResCommon);
-  rpc solveGooglePayOrderV3 (ReqSolveGooglePlayOrderV3) returns (ResCommon);
-  rpc deliverAA32Order (ReqDeliverAA32Order) returns (ResCommon);
-  rpc fetchMisc (ReqCommon) returns (ResMisc);
-  rpc modifySignature (ReqModifySignature) returns (ResCommon);
-  rpc fetchIDCardInfo (ReqCommon) returns (ResIDCardInfo);
-  rpc updateIDCardInfo (ReqUpdateIDCardInfo) returns (ResCommon);
-  rpc fetchVipReward (ReqCommon) returns (ResVipReward);
-  rpc gainVipReward (ReqGainVipReward) returns (ResCommon);
-  rpc fetchRefundOrder (ReqCommon) returns (ResFetchRefundOrder);
-  rpc fetchCustomizedContestList (ReqFetchCustomizedContestList) returns (ResFetchCustomizedContestList);
-  rpc fetchCustomizedContestExtendInfo (ReqFetchCustomizedContestExtendInfo) returns (ResFetchCustomizedContestExtendInfo);
-  rpc fetchCustomizedContestAuthInfo (ReqFetchCustomizedContestAuthInfo) returns (ResFetchCustomizedContestAuthInfo);
-  rpc enterCustomizedContest (ReqEnterCustomizedContest) returns (ResEnterCustomizedContest);
-  rpc leaveCustomizedContest (ReqCommon) returns (ResCommon);
-  rpc fetchCustomizedContestOnlineInfo (ReqFetchCustomizedContestOnlineInfo) returns (ResFetchCustomizedContestOnlineInfo);
-  rpc fetchCustomizedContestByContestId (ReqFetchCustomizedContestByContestId) returns (ResFetchCustomizedContestByContestId);
-  rpc startCustomizedContest (ReqStartCustomizedContest) returns (ResCommon);
-  rpc stopCustomizedContest (ReqCommon) returns (ResCommon);
-  rpc joinCustomizedContestChatRoom (ReqJoinCustomizedContestChatRoom) returns (ResJoinCustomizedContestChatRoom);
-  rpc leaveCustomizedContestChatRoom (ReqCommon) returns (ResCommon);
-  rpc sayChatMessage (ReqSayChatMessage) returns (ResCommon);
-  rpc fetchCustomizedContestGameRecords (ReqFetchCustomizedContestGameRecords) returns (ResFetchCustomizedContestGameRecords);
-  rpc fetchCustomizedContestGameLiveList (ReqFetchCustomizedContestGameLiveList) returns (ResFetchCustomizedContestGameLiveList);
-  rpc followCustomizedContest (ReqTargetCustomizedContest) returns (ResCommon);
-  rpc unfollowCustomizedContest (ReqTargetCustomizedContest) returns (ResCommon);
-  rpc fetchActivityList (ReqCommon) returns (ResActivityList);
-  rpc fetchAccountActivityData (ReqCommon) returns (ResAccountActivityData);
-  rpc exchangeActivityItem (ReqExchangeActivityItem) returns (ResExchangeActivityItem);
-  rpc completeActivityTask (ReqCompleteActivityTask) returns (ResCommon);
-  rpc completeActivityFlipTask (ReqCompleteActivityTask) returns (ResCommon);
-  rpc completePeriodActivityTask (ReqCompleteActivityTask) returns (ResCommon);
-  rpc completeRandomActivityTask (ReqCompleteActivityTask) returns (ResCommon);
-  rpc receiveActivityFlipTask (ReqReceiveActivityFlipTask) returns (ResReceiveActivityFlipTask);
-  rpc completeSegmentTaskReward (ReqCompleteSegmentTaskReward) returns (ResCompleteSegmentTaskReward);
-  rpc fetchActivityFlipInfo (ReqFetchActivityFlipInfo) returns (ResFetchActivityFlipInfo);
-  rpc gainAccumulatedPointActivityReward (ReqGainAccumulatedPointActivityReward) returns (ResCommon);
-  rpc gainMultiPointActivityReward (ReqGainMultiPointActivityReward) returns (ResCommon);
-  rpc fetchRankPointLeaderboard (ReqFetchRankPointLeaderboard) returns (ResFetchRankPointLeaderboard);
-  rpc gainRankPointReward (ReqGainRankPointReward) returns (ResCommon);
-  rpc richmanActivityNextMove (ReqRichmanNextMove) returns (ResRichmanNextMove);
-  rpc richmanAcitivitySpecialMove (ReqRichmanSpecialMove) returns (ResRichmanNextMove);
-  rpc richmanActivityChestInfo (ReqRichmanChestInfo) returns (ResRichmanChestInfo);
-  rpc createGameObserveAuth (ReqCreateGameObserveAuth) returns (ResCreateGameObserveAuth);
-  rpc refreshGameObserveAuth (ReqRefreshGameObserveAuth) returns (ResRefreshGameObserveAuth);
-  rpc fetchActivityBuff (ReqCommon) returns (ResActivityBuff);
-  rpc upgradeActivityBuff (ReqUpgradeActivityBuff) returns (ResActivityBuff);
-  rpc upgradeChallenge (ReqCommon) returns (ResUpgradeChallenge);
-  rpc refreshChallenge (ReqCommon) returns (ResRefreshChallenge);
-  rpc fetchChallengeInfo (ReqCommon) returns (ResFetchChallengeInfo);
-  rpc forceCompleteChallengeTask (ReqForceCompleteChallengeTask) returns (ResCommon);
-  rpc fetchChallengeSeason (ReqCommon) returns (ResChallengeSeasonInfo);
-  rpc receiveChallengeRankReward (ReqReceiveChallengeRankReward) returns (ResReceiveChallengeRankReward);
-  rpc fetchABMatchInfo (ReqCommon) returns (ResFetchABMatch);
-  rpc buyInABMatch (ReqBuyInABMatch) returns (ResCommon);
-  rpc receiveABMatchReward (ReqCommon) returns (ResCommon);
-  rpc quitABMatch (ReqCommon) returns (ResCommon);
-  rpc startUnifiedMatch (ReqStartUnifiedMatch) returns (ResCommon);
-  rpc cancelUnifiedMatch (ReqCancelUnifiedMatch) returns (ResCommon);
-  rpc fetchGamePointRank (ReqGamePointRank) returns (ResGamePointRank);
-  rpc fetchSelfGamePointRank (ReqGamePointRank) returns (ResFetchSelfGamePointRank);
-  rpc readSNS (ReqReadSNS) returns (ResReadSNS);
-  rpc replySNS (ReqReplySNS) returns (ResReplySNS);
-  rpc likeSNS (ReqLikeSNS) returns (ResLikeSNS);
-  rpc digMine (ReqDigMine) returns (ResDigMine);
-  rpc fetchLastPrivacy (ReqFetchLastPrivacy) returns (ResFetchLastPrivacy);
-  rpc checkPrivacy (ReqCheckPrivacy) returns (ResCommon);
-  rpc responseCaptcha (ReqResponseCaptcha) returns (ResCommon);
-  rpc fetchRPGBattleHistory (ReqFetchRPGBattleHistory) returns (ResFetchRPGBattleHistory);
-  rpc fetchRPGBattleHistoryV2 (ReqFetchRPGBattleHistory) returns (ResFetchRPGBattleHistoryV2);
-  rpc receiveRPGRewards (ReqReceiveRPGRewards) returns (ResReceiveRPGRewards);
-  rpc receiveRPGReward (ReqReceiveRPGReward) returns (ResReceiveRPGRewards);
-  rpc buyArenaTicket (ReqBuyArenaTicket) returns (ResCommon);
-  rpc enterArena (ReqEnterArena) returns (ResCommon);
-  rpc receiveArenaReward (ReqArenaReward) returns (ResArenaReward);
-  rpc fetchOBToken (ReqFetchOBToken) returns (ResFetchOBToken);
-  rpc receiveCharacterRewards (ReqReceiveCharacterRewards) returns (ResReceiveCharacterRewards);
-  rpc feedActivityFeed (ReqFeedActivityFeed) returns (ResFeedActivityFeed);
-  rpc sendActivityGiftToFriend (ReqSendActivityGiftToFriend) returns (ResSendActivityGiftToFriend);
-  rpc receiveActivityGift (ReqReceiveActivityGift) returns (ResCommon);
-  rpc fetchFriendFeedActivityData (ReqFetchFriendFeedActivityData) returns (ResFetchFriendFeedActivityData);
-  rpc openPreChestItem (ReqOpenPreChestItem) returns (ResOpenPreChestItem);
-  rpc fetchVoteActivity (ReqFetchVoteActivity) returns (ResFetchVoteActivity);
-  rpc voteActivity (ReqVoteActivity) returns (ResVoteActivity);
-  rpc unlockActivitySpot (ReqUnlockActivitySpot) returns (ResCommon);
-  rpc receiveActivitySpotReward (ReqReceiveActivitySpotReward) returns (ResReceiveActivitySpotReward);
-  rpc deleteAccount (ReqCommon) returns (ResDeleteAccount);
-  rpc cancelDeleteAccount (ReqCommon) returns (ResCommon);
-  rpc logReport (ReqLogReport) returns (ResCommon);
-  rpc bindOauth2 (ReqBindOauth2) returns (ResCommon);
-  rpc fetchOauth2Info (ReqFetchOauth2) returns (ResFetchOauth2);
-  rpc setLoadingImage (ReqSetLoadingImage) returns (ResCommon);
-  rpc fetchShopInterval (ReqCommon) returns (ResFetchShopInterval);
-  rpc fetchRecentFriend (ReqCommon) returns (ResFetchrecentFriend);
+  rpc fetchConnectionInfo(ReqCommon) returns (ResConnectionInfo);
+  rpc fetchQueueInfo(ReqCommon) returns (ResFetchQueueInfo);
+  rpc cancelQueue(ReqCommon) returns (ResCommon);
+  rpc signup(ReqSignupAccount) returns (ResSignupAccount);
+  rpc login(ReqLogin) returns (ResLogin);
+  rpc loginSuccess(ReqCommon) returns (ResCommon);
+  rpc emailLogin(ReqEmailLogin) returns (ResLogin);
+  rpc oauth2Auth(ReqOauth2Auth) returns (ResOauth2Auth);
+  rpc oauth2Check(ReqOauth2Check) returns (ResOauth2Check);
+  rpc oauth2Signup(ReqOauth2Signup) returns (ResOauth2Signup);
+  rpc oauth2Login(ReqOauth2Login) returns (ResLogin);
+  rpc dmmPreLogin(ReqDMMPreLogin) returns (ResDMMPreLogin);
+  rpc createPhoneVerifyCode(ReqCreatePhoneVerifyCode) returns (ResCommon);
+  rpc createEmailVerifyCode(ReqCreateEmailVerifyCode) returns (ResCommon);
+  rpc verfifyCodeForSecure(ReqVerifyCodeForSecure)
+      returns (ResVerfiyCodeForSecure);
+  rpc bindPhoneNumber(ReqBindPhoneNumber) returns (ResCommon);
+  rpc unbindPhoneNumber(ReqUnbindPhoneNumber) returns (ResCommon);
+  rpc fetchPhoneLoginBind(ReqCommon) returns (ResFetchPhoneLoginBind);
+  rpc createPhoneLoginBind(ReqCreatePhoneLoginBind) returns (ResCommon);
+  rpc bindEmail(ReqBindEmail) returns (ResCommon);
+  rpc modifyPassword(ReqModifyPassword) returns (ResCommon);
+  rpc bindAccount(ReqBindAccount) returns (ResCommon);
+  rpc logout(ReqLogout) returns (ResLogout);
+  rpc heatbeat(ReqHeatBeat) returns (ResCommon);
+  rpc loginBeat(ReqLoginBeat) returns (ResCommon);
+  rpc createNickname(ReqCreateNickname) returns (ResCommon);
+  rpc modifyNickname(ReqModifyNickname) returns (ResCommon);
+  rpc modifyBirthday(ReqModifyBirthday) returns (ResCommon);
+  rpc fetchRoom(ReqCommon) returns (ResSelfRoom);
+  rpc createRoom(ReqCreateRoom) returns (ResCreateRoom);
+  rpc joinRoom(ReqJoinRoom) returns (ResJoinRoom);
+  rpc leaveRoom(ReqCommon) returns (ResCommon);
+  rpc readyPlay(ReqRoomReady) returns (ResCommon);
+  rpc dressingStatus(ReqRoomDressing) returns (ResCommon);
+  rpc startRoom(ReqRoomStart) returns (ResCommon);
+  rpc kickPlayer(ReqRoomKick) returns (ResCommon);
+  rpc modifyRoom(ReqModifyRoom) returns (ResCommon);
+  rpc matchGame(ReqJoinMatchQueue) returns (ResCommon);
+  rpc cancelMatch(ReqCancelMatchQueue) returns (ResCommon);
+  rpc fetchAccountInfo(ReqAccountInfo) returns (ResAccountInfo);
+  rpc changeAvatar(ReqChangeAvatar) returns (ResCommon);
+  rpc receiveVersionReward(ReqCommon) returns (ResCommon);
+  rpc fetchAccountStatisticInfo(ReqAccountStatisticInfo)
+      returns (ResAccountStatisticInfo);
+  rpc fetchAccountChallengeRankInfo(ReqAccountInfo)
+      returns (ResAccountChallengeRankInfo);
+  rpc fetchAccountCharacterInfo(ReqCommon) returns (ResAccountCharacterInfo);
+  rpc shopPurchase(ReqShopPurchase) returns (ResShopPurchase);
+  rpc fetchGameRecord(ReqGameRecord) returns (ResGameRecord);
+  rpc readGameRecord(ReqGameRecord) returns (ResCommon);
+  rpc fetchGameRecordList(ReqGameRecordList) returns (ResGameRecordList);
+  rpc fetchCollectedGameRecordList(ReqCommon)
+      returns (ResCollectedGameRecordList);
+  rpc fetchGameRecordsDetail(ReqGameRecordsDetail)
+      returns (ResGameRecordsDetail);
+  rpc addCollectedGameRecord(ReqAddCollectedGameRecord)
+      returns (ResAddCollectedGameRecord);
+  rpc removeCollectedGameRecord(ReqRemoveCollectedGameRecord)
+      returns (ResRemoveCollectedGameRecord);
+  rpc changeCollectedGameRecordRemarks(ReqChangeCollectedGameRecordRemarks)
+      returns (ResChangeCollectedGameRecordRemarks);
+  rpc fetchLevelLeaderboard(ReqLevelLeaderboard) returns (ResLevelLeaderboard);
+  rpc fetchChallengeLeaderboard(ReqChallangeLeaderboard)
+      returns (ResChallengeLeaderboard);
+  rpc fetchMutiChallengeLevel(ReqMutiChallengeLevel)
+      returns (ResMutiChallengeLevel);
+  rpc fetchMultiAccountBrief(ReqMultiAccountId) returns (ResMultiAccountBrief);
+  rpc fetchFriendList(ReqCommon) returns (ResFriendList);
+  rpc fetchFriendApplyList(ReqCommon) returns (ResFriendApplyList);
+  rpc applyFriend(ReqApplyFriend) returns (ResCommon);
+  rpc handleFriendApply(ReqHandleFriendApply) returns (ResCommon);
+  rpc removeFriend(ReqRemoveFriend) returns (ResCommon);
+  rpc searchAccountById(ReqSearchAccountById) returns (ResSearchAccountById);
+  rpc searchAccountByPattern(ReqSearchAccountByPattern)
+      returns (ResSearchAccountByPattern);
+  rpc fetchAccountState(ReqAccountList) returns (ResAccountStates);
+  rpc fetchBagInfo(ReqCommon) returns (ResBagInfo);
+  rpc useBagItem(ReqUseBagItem) returns (ResCommon);
+  rpc openManualItem(ReqOpenManualItem) returns (ResCommon);
+  rpc openRandomRewardItem(ReqOpenRandomRewardItem)
+      returns (ResOpenRandomRewardItem);
+  rpc openAllRewardItem(ReqOpenAllRewardItem) returns (ResOpenAllRewardItem);
+  rpc composeShard(ReqComposeShard) returns (ResCommon);
+  rpc fetchAnnouncement(ReqFetchAnnouncement) returns (ResAnnouncement);
+  rpc readAnnouncement(ReqReadAnnouncement) returns (ResCommon);
+  rpc fetchMailInfo(ReqCommon) returns (ResMailInfo);
+  rpc readMail(ReqReadMail) returns (ResCommon);
+  rpc deleteMail(ReqDeleteMail) returns (ResCommon);
+  rpc takeAttachmentFromMail(ReqTakeAttachment) returns (ResCommon);
+  rpc receiveAchievementReward(ReqReceiveAchievementReward)
+      returns (ResReceiveAchievementReward);
+  rpc receiveAchievementGroupReward(ReqReceiveAchievementGroupReward)
+      returns (ResReceiveAchievementGroupReward);
+  rpc fetchAchievementRate(ReqCommon) returns (ResFetchAchievementRate);
+  rpc fetchAchievement(ReqCommon) returns (ResAchievement);
+  rpc buyShiLian(ReqBuyShiLian) returns (ResCommon);
+  rpc matchShiLian(ReqCommon) returns (ResCommon);
+  rpc goNextShiLian(ReqCommon) returns (ResCommon);
+  rpc updateClientValue(ReqUpdateClientValue) returns (ResCommon);
+  rpc fetchClientValue(ReqCommon) returns (ResClientValue);
+  rpc clientMessage(ReqClientMessage) returns (ResCommon);
+  rpc fetchCurrentMatchInfo(ReqCurrentMatchInfo) returns (ResCurrentMatchInfo);
+  rpc userComplain(ReqUserComplain) returns (ResCommon);
+  rpc fetchReviveCoinInfo(ReqCommon) returns (ResReviveCoinInfo);
+  rpc gainReviveCoin(ReqCommon) returns (ResCommon);
+  rpc fetchDailyTask(ReqCommon) returns (ResDailyTask);
+  rpc refreshDailyTask(ReqRefreshDailyTask) returns (ResRefreshDailyTask);
+  rpc useGiftCode(ReqUseGiftCode) returns (ResUseGiftCode);
+  rpc useSpecialGiftCode(ReqUseGiftCode) returns (ResUseSpecialGiftCode);
+  rpc fetchTitleList(ReqCommon) returns (ResTitleList);
+  rpc useTitle(ReqUseTitle) returns (ResCommon);
+  rpc sendClientMessage(ReqSendClientMessage) returns (ResCommon);
+  rpc fetchGameLiveInfo(ReqGameLiveInfo) returns (ResGameLiveInfo);
+  rpc fetchGameLiveLeftSegment(ReqGameLiveLeftSegment)
+      returns (ResGameLiveLeftSegment);
+  rpc fetchGameLiveList(ReqGameLiveList) returns (ResGameLiveList);
+  rpc fetchCommentSetting(ReqCommon) returns (ResCommentSetting);
+  rpc updateCommentSetting(ReqUpdateCommentSetting) returns (ResCommon);
+  rpc fetchCommentList(ReqFetchCommentList) returns (ResFetchCommentList);
+  rpc fetchCommentContent(ReqFetchCommentContent)
+      returns (ResFetchCommentContent);
+  rpc leaveComment(ReqLeaveComment) returns (ResCommon);
+  rpc deleteComment(ReqDeleteComment) returns (ResCommon);
+  rpc updateReadComment(ReqUpdateReadComment) returns (ResCommon);
+  rpc fetchRollingNotice(ReqCommon) returns (ReqRollingNotice);
+  rpc fetchServerTime(ReqCommon) returns (ResServerTime);
+  rpc fetchPlatformProducts(ReqPlatformBillingProducts)
+      returns (ResPlatformBillingProducts);
+  rpc cancelGooglePlayOrder(ReqCancelGooglePlayOrder) returns (ResCommon);
+  rpc openChest(ReqOpenChest) returns (ResOpenChest);
+  rpc buyFromChestShop(ReqBuyFromChestShop) returns (ResBuyFromChestShop);
+  rpc fetchDailySignInInfo(ReqCommon) returns (ResDailySignInInfo);
+  rpc doDailySignIn(ReqCommon) returns (ResCommon);
+  rpc doActivitySignIn(ReqDoActivitySignIn) returns (ResDoActivitySignIn);
+  rpc fetchCharacterInfo(ReqCommon) returns (ResCharacterInfo);
+  rpc updateCharacterSort(ReqUpdateCharacterSort) returns (ResCommon);
+  rpc changeMainCharacter(ReqChangeMainCharacter) returns (ResCommon);
+  rpc changeCharacterSkin(ReqChangeCharacterSkin) returns (ResCommon);
+  rpc changeCharacterView(ReqChangeCharacterView) returns (ResCommon);
+  rpc setHiddenCharacter(ReqSetHiddenCharacter) returns (ResSetHiddenCharacter);
+  rpc sendGiftToCharacter(ReqSendGiftToCharacter)
+      returns (ResSendGiftToCharacter);
+  rpc sellItem(ReqSellItem) returns (ResCommon);
+  rpc fetchCommonView(ReqCommon) returns (ResCommonView);
+  rpc changeCommonView(ReqChangeCommonView) returns (ResCommon);
+  rpc saveCommonViews(ReqSaveCommonViews) returns (ResCommon);
+  rpc fetchCommonViews(ReqCommonViews) returns (ResCommonViews);
+  rpc fetchAllCommonViews(ReqCommon) returns (ResAllcommonViews);
+  rpc useCommonView(ReqUseCommonView) returns (ResCommon);
+  rpc upgradeCharacter(ReqUpgradeCharacter) returns (ResUpgradeCharacter);
+  rpc addFinishedEnding(ReqFinishedEnding) returns (ResCommon);
+  rpc receiveEndingReward(ReqFinishedEnding) returns (ResCommon);
+  rpc gameMasterCommand(ReqGMCommand) returns (ResCommon);
+  rpc fetchShopInfo(ReqCommon) returns (ResShopInfo);
+  rpc buyFromShop(ReqBuyFromShop) returns (ResBuyFromShop);
+  rpc buyFromZHP(ReqBuyFromZHP) returns (ResCommon);
+  rpc refreshZHPShop(ReqReshZHPShop) returns (ResRefreshZHPShop);
+  rpc fetchMonthTicketInfo(ReqCommon) returns (ResMonthTicketInfo);
+  rpc payMonthTicket(ReqPayMonthTicket) returns (ResPayMonthTicket);
+  rpc exchangeCurrency(ReqExchangeCurrency) returns (ResCommon);
+  rpc exchangeChestStone(ReqExchangeCurrency) returns (ResCommon);
+  rpc exchangeDiamond(ReqExchangeCurrency) returns (ResCommon);
+  rpc fetchServerSettings(ReqCommon) returns (ResServerSettings);
+  rpc fetchAccountSettings(ReqCommon) returns (ResAccountSettings);
+  rpc updateAccountSettings(ReqUpdateAccountSettings) returns (ResCommon);
+  rpc fetchModNicknameTime(ReqCommon) returns (ResModNicknameTime);
+  rpc createWechatNativeOrder(ReqCreateWechatNativeOrder)
+      returns (ResCreateWechatNativeOrder);
+  rpc createWechatAppOrder(ReqCreateWechatAppOrder)
+      returns (ResCreateWechatAppOrder);
+  rpc createAlipayOrder(ReqCreateAlipayOrder) returns (ResCreateAlipayOrder);
+  rpc createAlipayScanOrder(ReqCreateAlipayScanOrder)
+      returns (ResCreateAlipayScanOrder);
+  rpc createAlipayAppOrder(ReqCreateAlipayAppOrder)
+      returns (ResCreateAlipayAppOrder);
+  rpc createJPCreditCardOrder(ReqCreateJPCreditCardOrder)
+      returns (ResCreateJPCreditCardOrder);
+  rpc createJPPaypalOrder(ReqCreateJPPaypalOrder)
+      returns (ResCreateJPPaypalOrder);
+  rpc createJPAuOrder(ReqCreateJPAuOrder) returns (ResCreateJPAuOrder);
+  rpc createJPDocomoOrder(ReqCreateJPDocomoOrder)
+      returns (ResCreateJPDocomoOrder);
+  rpc createJPWebMoneyOrder(ReqCreateJPWebMoneyOrder)
+      returns (ResCreateJPWebMoneyOrder);
+  rpc createJPSoftbankOrder(ReqCreateJPSoftbankOrder)
+      returns (ResCreateJPSoftbankOrder);
+  rpc createJPPayPayOrder(ReqCreateJPPayPayOrder)
+      returns (ResCreateJPPayPayOrder);
+  rpc fetchJPCommonCreditCardOrder(ReqFetchJPCommonCreditCardOrder)
+      returns (ResFetchJPCommonCreditCardOrder);
+  rpc createENPaypalOrder(ReqCreateENPaypalOrder)
+      returns (ResCreateENPaypalOrder);
+  rpc createENMasterCardOrder(ReqCreateENMasterCardOrder)
+      returns (ResCreateENMasterCardOrder);
+  rpc createENVisaOrder(ReqCreateENVisaOrder) returns (ResCreateENVisaOrder);
+  rpc createENJCBOrder(ReqCreateENJCBOrder) returns (ResCreateENJCBOrder);
+  rpc createENAlipayOrder(ReqCreateENAlipayOrder)
+      returns (ResCreateENAlipayOrder);
+  rpc createKRPaypalOrder(ReqCreateKRPaypalOrder)
+      returns (ResCreateKRPaypalOrder);
+  rpc createKRMasterCardOrder(ReqCreateKRMasterCardOrder)
+      returns (ResCreateKRMasterCardOrder);
+  rpc createKRVisaOrder(ReqCreateKRVisaOrder) returns (ResCreateKRVisaOrder);
+  rpc createKRJCBOrder(ReqCreateKRJCBOrder) returns (ResCreateKRJCBOrder);
+  rpc createKRAlipayOrder(ReqCreateKRAlipayOrder)
+      returns (ResCreateKRAlipayOrder);
+  rpc createDMMOrder(ReqCreateDMMOrder) returns (ResCreateDmmOrder);
+  rpc createIAPOrder(ReqCreateIAPOrder) returns (ResCreateIAPOrder);
+  rpc createSteamOrder(ReqCreateSteamOrder) returns (ResCreateSteamOrder);
+  rpc verifySteamOrder(ReqVerifySteamOrder) returns (ResCommon);
+  rpc createMyCardAndroidOrder(ReqCreateMyCardOrder)
+      returns (ResCreateMyCardOrder);
+  rpc createMyCardWebOrder(ReqCreateMyCardOrder) returns (ResCreateMyCardOrder);
+  rpc createPaypalOrder(ReqCreatePaypalOrder) returns (ResCreatePaypalOrder);
+  rpc createXsollaOrder(ReqCreateXsollaOrder) returns (ResCreateXsollaOrder);
+  rpc verifyMyCardOrder(ReqVerifyMyCardOrder) returns (ResCommon);
+  rpc verificationIAPOrder(ReqVerificationIAPOrder)
+      returns (ResVerificationIAPOrder);
+  rpc createYostarSDKOrder(ReqCreateYostarOrder) returns (ResCreateYostarOrder);
+  rpc createBillingOrder(ReqCreateBillingOrder) returns (ResCreateBillingOrder);
+  rpc solveGooglePlayOrder(ReqSolveGooglePlayOrder) returns (ResCommon);
+  rpc solveGooglePayOrderV3(ReqSolveGooglePlayOrderV3) returns (ResCommon);
+  rpc deliverAA32Order(ReqDeliverAA32Order) returns (ResCommon);
+  rpc fetchMisc(ReqCommon) returns (ResMisc);
+  rpc modifySignature(ReqModifySignature) returns (ResCommon);
+  rpc fetchIDCardInfo(ReqCommon) returns (ResIDCardInfo);
+  rpc updateIDCardInfo(ReqUpdateIDCardInfo) returns (ResCommon);
+  rpc fetchVipReward(ReqCommon) returns (ResVipReward);
+  rpc gainVipReward(ReqGainVipReward) returns (ResCommon);
+  rpc fetchRefundOrder(ReqCommon) returns (ResFetchRefundOrder);
+  rpc fetchCustomizedContestList(ReqFetchCustomizedContestList)
+      returns (ResFetchCustomizedContestList);
+  rpc fetchCustomizedContestExtendInfo(ReqFetchCustomizedContestExtendInfo)
+      returns (ResFetchCustomizedContestExtendInfo);
+  rpc fetchCustomizedContestAuthInfo(ReqFetchCustomizedContestAuthInfo)
+      returns (ResFetchCustomizedContestAuthInfo);
+  rpc enterCustomizedContest(ReqEnterCustomizedContest)
+      returns (ResEnterCustomizedContest);
+  rpc leaveCustomizedContest(ReqCommon) returns (ResCommon);
+  rpc fetchCustomizedContestOnlineInfo(ReqFetchCustomizedContestOnlineInfo)
+      returns (ResFetchCustomizedContestOnlineInfo);
+  rpc fetchCustomizedContestByContestId(ReqFetchCustomizedContestByContestId)
+      returns (ResFetchCustomizedContestByContestId);
+  rpc startCustomizedContest(ReqStartCustomizedContest) returns (ResCommon);
+  rpc stopCustomizedContest(ReqCommon) returns (ResCommon);
+  rpc joinCustomizedContestChatRoom(ReqJoinCustomizedContestChatRoom)
+      returns (ResJoinCustomizedContestChatRoom);
+  rpc leaveCustomizedContestChatRoom(ReqCommon) returns (ResCommon);
+  rpc sayChatMessage(ReqSayChatMessage) returns (ResCommon);
+  rpc fetchCustomizedContestGameRecords(ReqFetchCustomizedContestGameRecords)
+      returns (ResFetchCustomizedContestGameRecords);
+  rpc fetchCustomizedContestGameLiveList(ReqFetchCustomizedContestGameLiveList)
+      returns (ResFetchCustomizedContestGameLiveList);
+  rpc followCustomizedContest(ReqTargetCustomizedContest) returns (ResCommon);
+  rpc unfollowCustomizedContest(ReqTargetCustomizedContest) returns (ResCommon);
+  rpc fetchActivityList(ReqCommon) returns (ResActivityList);
+  rpc fetchAccountActivityData(ReqCommon) returns (ResAccountActivityData);
+  rpc exchangeActivityItem(ReqExchangeActivityItem)
+      returns (ResExchangeActivityItem);
+  rpc completeActivityTask(ReqCompleteActivityTask) returns (ResCommon);
+  rpc completeActivityFlipTask(ReqCompleteActivityTask) returns (ResCommon);
+  rpc completePeriodActivityTask(ReqCompleteActivityTask) returns (ResCommon);
+  rpc completeRandomActivityTask(ReqCompleteActivityTask) returns (ResCommon);
+  rpc receiveActivityFlipTask(ReqReceiveActivityFlipTask)
+      returns (ResReceiveActivityFlipTask);
+  rpc completeSegmentTaskReward(ReqCompleteSegmentTaskReward)
+      returns (ResCompleteSegmentTaskReward);
+  rpc fetchActivityFlipInfo(ReqFetchActivityFlipInfo)
+      returns (ResFetchActivityFlipInfo);
+  rpc gainAccumulatedPointActivityReward(ReqGainAccumulatedPointActivityReward)
+      returns (ResCommon);
+  rpc gainMultiPointActivityReward(ReqGainMultiPointActivityReward)
+      returns (ResCommon);
+  rpc fetchRankPointLeaderboard(ReqFetchRankPointLeaderboard)
+      returns (ResFetchRankPointLeaderboard);
+  rpc gainRankPointReward(ReqGainRankPointReward) returns (ResCommon);
+  rpc richmanActivityNextMove(ReqRichmanNextMove) returns (ResRichmanNextMove);
+  rpc richmanAcitivitySpecialMove(ReqRichmanSpecialMove)
+      returns (ResRichmanNextMove);
+  rpc richmanActivityChestInfo(ReqRichmanChestInfo)
+      returns (ResRichmanChestInfo);
+  rpc createGameObserveAuth(ReqCreateGameObserveAuth)
+      returns (ResCreateGameObserveAuth);
+  rpc refreshGameObserveAuth(ReqRefreshGameObserveAuth)
+      returns (ResRefreshGameObserveAuth);
+  rpc fetchActivityBuff(ReqCommon) returns (ResActivityBuff);
+  rpc upgradeActivityBuff(ReqUpgradeActivityBuff) returns (ResActivityBuff);
+  rpc upgradeActivityLevel(ReqUpgradeActivityLevel)
+      returns (ResUpgradeActivityLevel);
+  rpc receiveUpgradeActivityReward(ReqReceiveUpgradeActivityReward)
+      returns (ResReceiveUpgradeActivityReward);
+  rpc upgradeChallenge(ReqCommon) returns (ResUpgradeChallenge);
+  rpc refreshChallenge(ReqCommon) returns (ResRefreshChallenge);
+  rpc fetchChallengeInfo(ReqCommon) returns (ResFetchChallengeInfo);
+  rpc forceCompleteChallengeTask(ReqForceCompleteChallengeTask)
+      returns (ResCommon);
+  rpc fetchChallengeSeason(ReqCommon) returns (ResChallengeSeasonInfo);
+  rpc receiveChallengeRankReward(ReqReceiveChallengeRankReward)
+      returns (ResReceiveChallengeRankReward);
+  rpc fetchABMatchInfo(ReqCommon) returns (ResFetchABMatch);
+  rpc buyInABMatch(ReqBuyInABMatch) returns (ResCommon);
+  rpc receiveABMatchReward(ReqCommon) returns (ResCommon);
+  rpc quitABMatch(ReqCommon) returns (ResCommon);
+  rpc startUnifiedMatch(ReqStartUnifiedMatch) returns (ResCommon);
+  rpc cancelUnifiedMatch(ReqCancelUnifiedMatch) returns (ResCommon);
+  rpc fetchGamePointRank(ReqGamePointRank) returns (ResGamePointRank);
+  rpc fetchSelfGamePointRank(ReqGamePointRank)
+      returns (ResFetchSelfGamePointRank);
+  rpc readSNS(ReqReadSNS) returns (ResReadSNS);
+  rpc replySNS(ReqReplySNS) returns (ResReplySNS);
+  rpc likeSNS(ReqLikeSNS) returns (ResLikeSNS);
+  rpc digMine(ReqDigMine) returns (ResDigMine);
+  rpc fetchLastPrivacy(ReqFetchLastPrivacy) returns (ResFetchLastPrivacy);
+  rpc checkPrivacy(ReqCheckPrivacy) returns (ResCommon);
+  rpc responseCaptcha(ReqResponseCaptcha) returns (ResCommon);
+  rpc fetchRPGBattleHistory(ReqFetchRPGBattleHistory)
+      returns (ResFetchRPGBattleHistory);
+  rpc fetchRPGBattleHistoryV2(ReqFetchRPGBattleHistory)
+      returns (ResFetchRPGBattleHistoryV2);
+  rpc receiveRPGRewards(ReqReceiveRPGRewards) returns (ResReceiveRPGRewards);
+  rpc receiveRPGReward(ReqReceiveRPGReward) returns (ResReceiveRPGRewards);
+  rpc buyArenaTicket(ReqBuyArenaTicket) returns (ResCommon);
+  rpc enterArena(ReqEnterArena) returns (ResCommon);
+  rpc receiveArenaReward(ReqArenaReward) returns (ResArenaReward);
+  rpc fetchOBToken(ReqFetchOBToken) returns (ResFetchOBToken);
+  rpc receiveCharacterRewards(ReqReceiveCharacterRewards)
+      returns (ResReceiveCharacterRewards);
+  rpc feedActivityFeed(ReqFeedActivityFeed) returns (ResFeedActivityFeed);
+  rpc sendActivityGiftToFriend(ReqSendActivityGiftToFriend)
+      returns (ResSendActivityGiftToFriend);
+  rpc receiveActivityGift(ReqReceiveActivityGift) returns (ResCommon);
+  rpc receiveAllActivityGift(ReqReceiveAllActivityGift)
+      returns (ResReceiveAllActivityGift);
+  rpc fetchFriendGiftActivityData(ReqFetchFriendGiftActivityData)
+      returns (ResFetchFriendGiftActivityData);
+  rpc openPreChestItem(ReqOpenPreChestItem) returns (ResOpenPreChestItem);
+  rpc fetchVoteActivity(ReqFetchVoteActivity) returns (ResFetchVoteActivity);
+  rpc voteActivity(ReqVoteActivity) returns (ResVoteActivity);
+  rpc unlockActivitySpot(ReqUnlockActivitySpot) returns (ResCommon);
+  rpc receiveActivitySpotReward(ReqReceiveActivitySpotReward)
+      returns (ResReceiveActivitySpotReward);
+  rpc deleteAccount(ReqCommon) returns (ResDeleteAccount);
+  rpc cancelDeleteAccount(ReqCommon) returns (ResCommon);
+  rpc logReport(ReqLogReport) returns (ResCommon);
+  rpc bindOauth2(ReqBindOauth2) returns (ResCommon);
+  rpc fetchOauth2Info(ReqFetchOauth2) returns (ResFetchOauth2);
+  rpc setLoadingImage(ReqSetLoadingImage) returns (ResCommon);
+  rpc fetchShopInterval(ReqCommon) returns (ResFetchShopInterval);
+  rpc fetchActivityInterval(ReqCommon) returns (ResFetchActivityInterval);
+  rpc fetchRecentFriend(ReqCommon) returns (ResFetchrecentFriend);
 }
 
 message ResConnectionInfo {
@@ -2232,10 +2281,7 @@ message ReqSignupAccount {
   string client_version_string = 6;
 }
 
-message ResSignupAccount {
-
-  Error error = 1;
-}
+message ResSignupAccount { Error error = 1; }
 
 message ReqLogin {
 
@@ -2330,10 +2376,7 @@ message ResFetchPhoneLoginBind {
   uint32 phone_login = 2;
 }
 
-message ReqCreatePhoneLoginBind {
-
-  string password = 1;
-}
+message ReqCreatePhoneLoginBind { string password = 1; }
 
 message ReqBindEmail {
 
@@ -2386,10 +2429,7 @@ message ReqOauth2Signup {
   string client_version_string = 7;
 }
 
-message ResOauth2Signup {
-
-  Error error = 1;
-}
+message ResOauth2Signup { Error error = 1; }
 
 message ReqOauth2Login {
 
@@ -2405,10 +2445,7 @@ message ReqOauth2Login {
   string client_version_string = 10;
 }
 
-message ReqDMMPreLogin {
-
-  string finish_url = 1;
-}
+message ReqDMMPreLogin { string finish_url = 1; }
 
 message ResDMMPreLogin {
 
@@ -2416,23 +2453,13 @@ message ResDMMPreLogin {
   string parameter = 1;
 }
 
-message ReqLogout {
-}
+message ReqLogout {}
 
-message ResLogout {
+message ResLogout { Error error = 1; }
 
-  Error error = 1;
-}
+message ReqHeatBeat { uint32 no_operation_counter = 1; }
 
-message ReqHeatBeat {
-
-  uint32 no_operation_counter = 1;
-}
-
-message ReqLoginBeat {
-
-  string contract = 1;
-}
+message ReqLoginBeat { string contract = 1; }
 
 message ReqJoinMatchQueue {
 
@@ -2440,15 +2467,9 @@ message ReqJoinMatchQueue {
   string client_version_string = 2;
 }
 
-message ReqCancelMatchQueue {
+message ReqCancelMatchQueue { uint32 match_mode = 1; }
 
-  uint32 match_mode = 1;
-}
-
-message ReqAccountInfo {
-
-  uint32 account_id = 1;
-}
+message ReqAccountInfo { uint32 account_id = 1; }
 
 message ResAccountInfo {
 
@@ -2469,10 +2490,7 @@ message ReqModifyNickname {
   uint32 use_item_id = 2;
 }
 
-message ReqModifyBirthday {
-
-  int32 birthday = 1;
-}
+message ReqModifyBirthday { int32 birthday = 1; }
 
 message ResSelfRoom {
 
@@ -2506,38 +2524,19 @@ message ResJoinRoom {
   Room room = 2;
 }
 
-message ReqRoomReady {
+message ReqRoomReady { bool ready = 1; }
 
-  bool ready = 1;
-}
+message ReqRoomDressing { bool dressing = 1; }
 
-message ReqRoomDressing {
+message ReqRoomStart {}
 
-  bool dressing = 1;
-}
+message ReqRoomKick { uint32 account_id = 1; }
 
-message ReqRoomStart {
-}
+message ReqModifyRoom { uint32 robot_count = 1; }
 
-message ReqRoomKick {
+message ReqChangeAvatar { uint32 avatar_id = 1; }
 
-  uint32 account_id = 1;
-}
-
-message ReqModifyRoom {
-
-  uint32 robot_count = 1;
-}
-
-message ReqChangeAvatar {
-
-  uint32 avatar_id = 1;
-}
-
-message ReqAccountStatisticInfo {
-
-  uint32 account_id = 1;
-}
+message ReqAccountStatisticInfo { uint32 account_id = 1; }
 
 message ResAccountStatisticInfo {
 
@@ -2612,10 +2611,7 @@ message ResCollectedGameRecordList {
   uint32 record_collect_limit = 3;
 }
 
-message ReqGameRecordsDetail {
-
-  repeated string uuid_list = 1;
-}
+message ReqGameRecordsDetail { repeated string uuid_list = 1; }
 
 message ResGameRecordsDetail {
 
@@ -2631,20 +2627,11 @@ message ReqAddCollectedGameRecord {
   uint32 end_time = 4;
 }
 
-message ResAddCollectedGameRecord {
+message ResAddCollectedGameRecord { Error error = 1; }
 
-  Error error = 1;
-}
+message ReqRemoveCollectedGameRecord { string uuid = 1; }
 
-message ReqRemoveCollectedGameRecord {
-
-  string uuid = 1;
-}
-
-message ResRemoveCollectedGameRecord {
-
-  Error error = 1;
-}
+message ResRemoveCollectedGameRecord { Error error = 1; }
 
 message ReqChangeCollectedGameRecordRemarks {
 
@@ -2652,15 +2639,9 @@ message ReqChangeCollectedGameRecordRemarks {
   string remarks = 2;
 }
 
-message ResChangeCollectedGameRecordRemarks {
+message ResChangeCollectedGameRecordRemarks { Error error = 1; }
 
-  Error error = 1;
-}
-
-message ReqLevelLeaderboard {
-
-  uint32 type = 1;
-}
+message ReqLevelLeaderboard { uint32 type = 1; }
 
 message ResLevelLeaderboard {
 
@@ -2675,10 +2656,7 @@ message ResLevelLeaderboard {
   }
 }
 
-message ReqChallangeLeaderboard {
-
-  uint32 season = 1;
-}
+message ReqChallangeLeaderboard { uint32 season = 1; }
 
 message ResChallengeLeaderboard {
 
@@ -2712,10 +2690,7 @@ message ResMutiChallengeLevel {
   }
 }
 
-message ReqMultiAccountId {
-
-  repeated uint32 account_id_list = 1;
-}
+message ReqMultiAccountId { repeated uint32 account_id_list = 1; }
 
 message ResMultiAccountBrief {
 
@@ -2743,10 +2718,7 @@ message ResFriendApplyList {
   }
 }
 
-message ReqApplyFriend {
-
-  uint32 target_id = 1;
-}
+message ReqApplyFriend { uint32 target_id = 1; }
 
 message ReqHandleFriendApply {
 
@@ -2754,10 +2726,7 @@ message ReqHandleFriendApply {
   uint32 method = 2;
 }
 
-message ReqRemoveFriend {
-
-  uint32 target_id = 1;
-}
+message ReqRemoveFriend { uint32 target_id = 1; }
 
 message ReqSearchAccountByPattern {
 
@@ -2773,10 +2742,7 @@ message ResSearchAccountByPattern {
   uint32 decode_id = 4;
 }
 
-message ReqAccountList {
-
-  repeated uint32 account_id_list = 1;
-}
+message ReqAccountList { repeated uint32 account_id_list = 1; }
 
 message ResAccountStates {
 
@@ -2784,10 +2750,7 @@ message ResAccountStates {
   repeated AccountActiveState states = 2;
 }
 
-message ReqSearchAccountById {
-
-  uint32 account_id = 1;
-}
+message ReqSearchAccountById { uint32 account_id = 1; }
 
 message ResSearchAccountById {
 
@@ -2801,10 +2764,7 @@ message ResBagInfo {
   Bag bag = 2;
 }
 
-message ReqUseBagItem {
-
-  uint32 item_id = 1;
-}
+message ReqUseBagItem { uint32 item_id = 1; }
 
 message ReqOpenManualItem {
 
@@ -2813,10 +2773,7 @@ message ReqOpenManualItem {
   uint32 select_id = 3;
 }
 
-message ReqOpenRandomRewardItem {
-
-  uint32 item_id = 1;
-}
+message ReqOpenRandomRewardItem { uint32 item_id = 1; }
 
 message ResOpenRandomRewardItem {
 
@@ -2824,10 +2781,7 @@ message ResOpenRandomRewardItem {
   repeated OpenResult results = 2;
 }
 
-message ReqOpenAllRewardItem {
-
-  uint32 item_id = 1;
-}
+message ReqOpenAllRewardItem { uint32 item_id = 1; }
 
 message ResOpenAllRewardItem {
 
@@ -2835,10 +2789,7 @@ message ResOpenAllRewardItem {
   repeated OpenResult results = 2;
 }
 
-message ReqComposeShard {
-
-  uint32 item_id = 1;
-}
+message ReqComposeShard { uint32 item_id = 1; }
 
 message ReqFetchAnnouncement {
 
@@ -2860,25 +2811,13 @@ message ResMailInfo {
   repeated Mail mails = 2;
 }
 
-message ReqReadMail {
+message ReqReadMail { uint32 mail_id = 1; }
 
-  uint32 mail_id = 1;
-}
+message ReqDeleteMail { uint32 mail_id = 1; }
 
-message ReqDeleteMail {
+message ReqTakeAttachment { uint32 mail_id = 1; }
 
-  uint32 mail_id = 1;
-}
-
-message ReqTakeAttachment {
-
-  uint32 mail_id = 1;
-}
-
-message ReqReceiveAchievementGroupReward {
-
-  uint32 group_id = 1;
-}
+message ReqReceiveAchievementGroupReward { uint32 group_id = 1; }
 
 message ResReceiveAchievementGroupReward {
 
@@ -2886,10 +2825,7 @@ message ResReceiveAchievementGroupReward {
   repeated ExecuteReward execute_reward = 2;
 }
 
-message ReqReceiveAchievementReward {
-
-  uint32 achievement_id = 1;
-}
+message ReqReceiveAchievementReward { uint32 achievement_id = 1; }
 
 message ResReceiveAchievementReward {
 
@@ -2922,15 +2858,9 @@ message ResTitleList {
   repeated uint32 title_list = 2;
 }
 
-message ReqUseTitle {
+message ReqUseTitle { uint32 title = 1; }
 
-  uint32 title = 1;
-}
-
-message ReqBuyShiLian {
-
-  uint32 type = 1;
-}
+message ReqBuyShiLian { uint32 type = 1; }
 
 message ReqUpdateClientValue {
 
@@ -2957,10 +2887,7 @@ message ReqClientMessage {
   string message = 2;
 }
 
-message ReqCurrentMatchInfo {
-
-  repeated uint32 mode_list = 1;
-}
+message ReqCurrentMatchInfo { repeated uint32 mode_list = 1; }
 
 message ResCurrentMatchInfo {
 
@@ -2980,10 +2907,7 @@ message ReqUserComplain {
   uint32 type = 2;
 }
 
-message ReqReadAnnouncement {
-
-  uint32 announcement_id = 1;
-}
+message ReqReadAnnouncement { uint32 announcement_id = 1; }
 
 message ResReviveCoinInfo {
 
@@ -3000,10 +2924,7 @@ message ResDailyTask {
   uint32 refresh_count = 5;
 }
 
-message ReqRefreshDailyTask {
-
-  uint32 task_id = 1;
-}
+message ReqRefreshDailyTask { uint32 task_id = 1; }
 
 message ResRefreshDailyTask {
 
@@ -3012,10 +2933,7 @@ message ResRefreshDailyTask {
   uint32 refresh_count = 3;
 }
 
-message ReqUseGiftCode {
-
-  string code = 1;
-}
+message ReqUseGiftCode { string code = 1; }
 
 message ResUseGiftCode {
 
@@ -3036,10 +2954,7 @@ message ReqSendClientMessage {
   string content = 3;
 }
 
-message ReqGameLiveInfo {
-
-  string game_uuid = 1;
-}
+message ReqGameLiveInfo { string game_uuid = 1; }
 
 message ResGameLiveInfo {
 
@@ -3065,10 +2980,7 @@ message ResGameLiveLeftSegment {
   uint32 segment_end_millisecond = 6;
 }
 
-message ReqGameLiveList {
-
-  uint32 filter_id = 1;
-}
+message ReqGameLiveList { uint32 filter_id = 1; }
 
 message ResGameLiveList {
 
@@ -3082,15 +2994,9 @@ message ResCommentSetting {
   uint32 comment_allow = 2;
 }
 
-message ReqUpdateCommentSetting {
+message ReqUpdateCommentSetting { uint32 comment_allow = 1; }
 
-  uint32 comment_allow = 1;
-}
-
-message ReqFetchCommentList {
-
-  uint32 target_id = 1;
-}
+message ReqFetchCommentList { uint32 target_id = 1; }
 
 message ResFetchCommentList {
 
@@ -3124,25 +3030,13 @@ message ReqDeleteComment {
   repeated uint32 delete_list = 2;
 }
 
-message ReqUpdateReadComment {
+message ReqUpdateReadComment { uint32 read_id = 1; }
 
-  uint32 read_id = 1;
-}
+message ReqRollingNotice { repeated RollingNotice notice = 1; }
 
-message ReqRollingNotice {
+message ResServerTime { uint32 server_time = 1; }
 
-  repeated RollingNotice notice = 1;
-}
-
-message ResServerTime {
-
-  uint32 server_time = 1;
-}
-
-message ReqPlatformBillingProducts {
-
-  uint32 shelves_id = 1;
-}
+message ReqPlatformBillingProducts { uint32 shelves_id = 1; }
 
 message ResPlatformBillingProducts {
 
@@ -3179,10 +3073,7 @@ message ReqSolveGooglePlayOrderV3 {
   uint32 account_id = 4;
 }
 
-message ReqCancelGooglePlayOrder {
-
-  string order_id = 1;
-}
+message ReqCancelGooglePlayOrder { string order_id = 1; }
 
 message ReqCreateWechatNativeOrder {
 
@@ -3390,10 +3281,7 @@ message ReqFetchJPCommonCreditCardOrder {
   uint32 account_id = 2;
 }
 
-message ResFetchJPCommonCreditCardOrder {
-
-  Error error = 1;
-}
+message ResFetchJPCommonCreditCardOrder { Error error = 1; }
 
 message ReqCreateYostarOrder {
 
@@ -3614,10 +3502,7 @@ message ReqVerificationIAPOrder {
   uint32 account_id = 4;
 }
 
-message ResVerificationIAPOrder {
-
-  Error error = 1;
-}
+message ResVerificationIAPOrder { Error error = 1; }
 
 message ReqCreateSteamOrder {
 
@@ -3747,10 +3632,7 @@ message ResDailySignInInfo {
   uint32 sign_in_days = 2;
 }
 
-message ReqDoActivitySignIn {
-
-  uint32 activity_id = 2;
-}
+message ReqDoActivitySignIn { uint32 activity_id = 2; }
 
 message ResDoActivitySignIn {
 
@@ -3779,15 +3661,9 @@ message ResCharacterInfo {
   repeated uint32 hidden_characters = 10;
 }
 
-message ReqUpdateCharacterSort {
+message ReqUpdateCharacterSort { repeated uint32 sort = 1; }
 
-  repeated uint32 sort = 1;
-}
-
-message ReqChangeMainCharacter {
-
-  uint32 character_id = 1;
-}
+message ReqChangeMainCharacter { uint32 character_id = 1; }
 
 message ReqChangeCharacterSkin {
 
@@ -3802,10 +3678,7 @@ message ReqChangeCharacterView {
   uint32 item_id = 3;
 }
 
-message ReqSetHiddenCharacter {
-
-  repeated uint32 chara_list = 1;
-}
+message ReqSetHiddenCharacter { repeated uint32 chara_list = 1; }
 
 message ResSetHiddenCharacter {
 
@@ -3868,10 +3741,7 @@ message ReqSaveCommonViews {
   uint32 is_use = 3;
 }
 
-message ReqCommonViews {
-
-  uint32 index = 1;
-}
+message ReqCommonViews { uint32 index = 1; }
 
 message ResCommonViews {
 
@@ -3892,15 +3762,9 @@ message ResAllcommonViews {
   }
 }
 
-message ReqUseCommonView {
+message ReqUseCommonView { uint32 index = 3; }
 
-  uint32 index = 3;
-}
-
-message ReqUpgradeCharacter {
-
-  uint32 character_id = 1;
-}
+message ReqUpgradeCharacter { uint32 character_id = 1; }
 
 message ResUpgradeCharacter {
 
@@ -3915,10 +3779,7 @@ message ReqFinishedEnding {
   uint32 ending_id = 3;
 }
 
-message ReqGMCommand {
-
-  string command = 1;
-}
+message ReqGMCommand { string command = 1; }
 
 message ResShopInfo {
 
@@ -3952,10 +3813,7 @@ message ReqBuyFromZHP {
   uint32 count = 2;
 }
 
-message ReqPayMonthTicket {
-
-  uint32 ticket_id = 1;
-}
+message ReqPayMonthTicket { uint32 ticket_id = 1; }
 
 message ResPayMonthTicket {
 
@@ -4000,10 +3858,7 @@ message ResAccountSettings {
   repeated AccountSetting settings = 2;
 }
 
-message ReqUpdateAccountSettings {
-
-  AccountSetting setting = 1;
-}
+message ReqUpdateAccountSettings { AccountSetting setting = 1; }
 
 message ResModNicknameTime {
 
@@ -4024,10 +3879,7 @@ message ResMisc {
   }
 }
 
-message ReqModifySignature {
-
-  string signature = 1;
-}
+message ReqModifySignature { string signature = 1; }
 
 message ResIDCardInfo {
 
@@ -4064,10 +3916,7 @@ message ResFetchRefundOrder {
   }
 }
 
-message ReqGainVipReward {
-
-  uint32 vip_level = 1;
-}
+message ReqGainVipReward { uint32 vip_level = 1; }
 
 message ReqFetchCustomizedContestList {
 
@@ -4082,10 +3931,7 @@ message ResFetchCustomizedContestList {
   repeated CustomizedContestBase follow_contests = 3;
 }
 
-message ReqFetchCustomizedContestExtendInfo {
-
-  repeated uint32 uid_list = 1;
-}
+message ReqFetchCustomizedContestExtendInfo { repeated uint32 uid_list = 1; }
 
 message ResFetchCustomizedContestExtendInfo {
 
@@ -4093,10 +3939,7 @@ message ResFetchCustomizedContestExtendInfo {
   repeated CustomizedContestExtend extend_list = 2;
 }
 
-message ReqFetchCustomizedContestAuthInfo {
-
-  uint32 unique_id = 1;
-}
+message ReqFetchCustomizedContestAuthInfo { uint32 unique_id = 1; }
 
 message ResFetchCustomizedContestAuthInfo {
 
@@ -4104,10 +3947,7 @@ message ResFetchCustomizedContestAuthInfo {
   uint32 observer_level = 2;
 }
 
-message ReqEnterCustomizedContest {
-
-  uint32 unique_id = 1;
-}
+message ReqEnterCustomizedContest { uint32 unique_id = 1; }
 
 message ResEnterCustomizedContest {
 
@@ -4117,10 +3957,7 @@ message ResEnterCustomizedContest {
   bool is_followed = 4;
 }
 
-message ReqFetchCustomizedContestOnlineInfo {
-
-  uint32 unique_id = 1;
-}
+message ReqFetchCustomizedContestOnlineInfo { uint32 unique_id = 1; }
 
 message ResFetchCustomizedContestOnlineInfo {
 
@@ -4128,10 +3965,7 @@ message ResFetchCustomizedContestOnlineInfo {
   uint32 online_player = 2;
 }
 
-message ReqFetchCustomizedContestByContestId {
-
-  uint32 contest_id = 1;
-}
+message ReqFetchCustomizedContestByContestId { uint32 contest_id = 1; }
 
 message ResFetchCustomizedContestByContestId {
 
@@ -4145,10 +3979,7 @@ message ReqStartCustomizedContest {
   string client_version_string = 2;
 }
 
-message ReqJoinCustomizedContestChatRoom {
-
-  uint32 unique_id = 1;
-}
+message ReqJoinCustomizedContestChatRoom { uint32 unique_id = 1; }
 
 message ResJoinCustomizedContestChatRoom {
 
@@ -4156,15 +3987,9 @@ message ResJoinCustomizedContestChatRoom {
   repeated bytes chat_history = 2;
 }
 
-message ReqSayChatMessage {
+message ReqSayChatMessage { string content = 1; }
 
-  string content = 1;
-}
-
-message ReqFetchCustomizedContestGameLiveList {
-
-  uint32 unique_id = 1;
-}
+message ReqFetchCustomizedContestGameLiveList { uint32 unique_id = 1; }
 
 message ResFetchCustomizedContestGameLiveList {
 
@@ -4185,10 +4010,7 @@ message ResFetchCustomizedContestGameRecords {
   repeated RecordGame record_list = 3;
 }
 
-message ReqTargetCustomizedContest {
-
-  uint32 unique_id = 1;
-}
+message ReqTargetCustomizedContest { uint32 unique_id = 1; }
 
 message ResActivityList {
 
@@ -4217,6 +4039,8 @@ message ResAccountActivityData {
   repeated lq.SegmentTaskProgress segment_task_progress_list = 17;
   repeated lq.VoteData vote_records = 18;
   repeated lq.ActivitySpotData spot_data = 19;
+  repeated lq.ActivityFriendGiftData friend_gift_data = 20;
+  repeated lq.ActivityUpgradeData upgrade_data = 21;
 
   message ActivitySignInData {
 
@@ -4281,15 +4105,9 @@ message ResExchangeActivityItem {
   repeated ExecuteReward execute_reward = 2;
 }
 
-message ReqCompleteActivityTask {
+message ReqCompleteActivityTask { uint32 task_id = 1; }
 
-  uint32 task_id = 1;
-}
-
-message ReqReceiveActivityFlipTask {
-
-  uint32 task_id = 1;
-}
+message ReqReceiveActivityFlipTask { uint32 task_id = 1; }
 
 message ResReceiveActivityFlipTask {
 
@@ -4309,10 +4127,7 @@ message ResCompleteSegmentTaskReward {
   repeated ExecuteReward rewards = 2;
 }
 
-message ReqFetchActivityFlipInfo {
-
-  uint32 activity_id = 1;
-}
+message ReqFetchActivityFlipInfo { uint32 activity_id = 1; }
 
 message ResFetchActivityFlipInfo {
 
@@ -4333,10 +4148,7 @@ message ReqGainMultiPointActivityReward {
   repeated uint32 reward_id_list = 2;
 }
 
-message ReqFetchRankPointLeaderboard {
-
-  uint32 leaderboard_id = 1;
-}
+message ReqFetchRankPointLeaderboard { uint32 leaderboard_id = 1; }
 
 message ResFetchRankPointLeaderboard {
 
@@ -4359,10 +4171,7 @@ message ReqGainRankPointReward {
   uint32 activity_id = 2;
 }
 
-message ReqRichmanNextMove {
-
-  uint32 activity_id = 1;
-}
+message ReqRichmanNextMove { uint32 activity_id = 1; }
 
 message ResRichmanNextMove {
 
@@ -4407,10 +4216,7 @@ message ReqRichmanSpecialMove {
   uint32 step = 2;
 }
 
-message ReqRichmanChestInfo {
-
-  uint32 activity_id = 1;
-}
+message ReqRichmanChestInfo { uint32 activity_id = 1; }
 
 message ResRichmanChestInfo {
 
@@ -4424,10 +4230,7 @@ message ResRichmanChestInfo {
   }
 }
 
-message ReqCreateGameObserveAuth {
-
-  string game_uuid = 1;
-}
+message ReqCreateGameObserveAuth { string game_uuid = 1; }
 
 message ResCreateGameObserveAuth {
 
@@ -4436,10 +4239,7 @@ message ResCreateGameObserveAuth {
   string location = 3;
 }
 
-message ReqRefreshGameObserveAuth {
-
-  string token = 1;
-}
+message ReqRefreshGameObserveAuth { string token = 1; }
 
 message ResRefreshGameObserveAuth {
 
@@ -4453,9 +4253,44 @@ message ResActivityBuff {
   repeated lq.ActivityBuffData buff_list = 2;
 }
 
-message ReqUpgradeActivityBuff {
+message ReqUpgradeActivityBuff { uint32 buff_id = 1; }
 
-  uint32 buff_id = 1;
+message ReqUpgradeActivityLevel {
+
+  uint32 activity_id = 1;
+  uint32 group = 2;
+  uint32 count = 3;
+}
+
+message ResUpgradeActivityLevel {
+
+  Error error = 1;
+  repeated ExecuteReward rewards = 2;
+}
+
+message ReqReceiveUpgradeActivityReward { uint32 activity_id = 1; }
+
+message ResReceiveUpgradeActivityReward {
+
+  Error error = 1;
+  repeated ExecuteReward rewards = 2;
+}
+
+message ReqReceiveAllActivityGift { uint32 activity_id = 1; }
+
+message ResReceiveAllActivityGift {
+
+  Error error = 1;
+  repeated ExecuteReward rewards = 2;
+  repeated ReceiveRewards receive_gift = 3;
+
+  message ReceiveRewards {
+
+    uint32 id = 1;
+    uint32 from_account_id = 2;
+    uint32 item_id = 3;
+    uint32 count = 4;
+  }
 }
 
 message ResUpgradeChallenge {
@@ -4489,10 +4324,7 @@ message ResFetchChallengeInfo {
   repeated uint32 rewarded_season = 7;
 }
 
-message ReqForceCompleteChallengeTask {
-
-  uint32 task_id = 1;
-}
+message ReqForceCompleteChallengeTask { uint32 task_id = 1; }
 
 message ResFetchABMatch {
 
@@ -4518,10 +4350,7 @@ message ReqStartUnifiedMatch {
   string client_version_string = 2;
 }
 
-message ReqCancelUnifiedMatch {
-
-  string match_sid = 1;
-}
+message ReqCancelUnifiedMatch { string match_sid = 1; }
 
 message ResChallengeSeasonInfo {
 
@@ -4537,10 +4366,7 @@ message ResChallengeSeasonInfo {
   }
 }
 
-message ReqReceiveChallengeRankReward {
-
-  uint32 season_id = 1;
-}
+message ReqReceiveChallengeRankReward { uint32 season_id = 1; }
 
 message ResReceiveChallengeRankReward {
 
@@ -4554,15 +4380,9 @@ message ResReceiveChallengeRankReward {
   }
 }
 
-message ReqBuyInABMatch {
+message ReqBuyInABMatch { uint32 match_id = 1; }
 
-  uint32 match_id = 1;
-}
-
-message ReqGamePointRank {
-
-  uint32 activity_id = 1;
-}
+message ReqGamePointRank { uint32 activity_id = 1; }
 
 message ResGamePointRank {
 
@@ -4583,10 +4403,7 @@ message ResFetchSelfGamePointRank {
   uint32 self_rate = 2;
 }
 
-message ReqReadSNS {
-
-  uint32 id = 1;
-}
+message ReqReadSNS { uint32 id = 1; }
 
 message ResReadSNS {
 
@@ -4594,10 +4411,7 @@ message ResReadSNS {
   SNSBlog sns_content = 2;
 }
 
-message ReqReplySNS {
-
-  uint32 id = 1;
-}
+message ReqReplySNS { uint32 id = 1; }
 
 message ResReplySNS {
 
@@ -4605,10 +4419,7 @@ message ResReplySNS {
   SNSReply sns_reply = 2;
 }
 
-message ReqLikeSNS {
-
-  uint32 id = 1;
-}
+message ReqLikeSNS { uint32 id = 1; }
 
 message ResLikeSNS {
 
@@ -4629,10 +4440,7 @@ message ResDigMine {
   repeated lq.RewardSlot reward = 3;
 }
 
-message ReqFetchLastPrivacy {
-
-  repeated uint32 type = 1;
-}
+message ReqFetchLastPrivacy { repeated uint32 type = 1; }
 
 message ResFetchLastPrivacy {
 
@@ -4667,10 +4475,7 @@ message ReqResponseCaptcha {
   uint32 type = 5;
 }
 
-message ReqFetchRPGBattleHistory {
-
-  uint32 activity_id = 1;
-}
+message ReqFetchRPGBattleHistory { uint32 activity_id = 1; }
 
 message ResFetchRPGBattleHistory {
 
@@ -4722,20 +4527,11 @@ message ResFetchRPGBattleHistoryV2 {
   }
 }
 
-message ReqBuyArenaTicket {
+message ReqBuyArenaTicket { uint32 activity_id = 1; }
 
-  uint32 activity_id = 1;
-}
+message ReqArenaReward { uint32 activity_id = 1; }
 
-message ReqArenaReward {
-
-  uint32 activity_id = 1;
-}
-
-message ReqEnterArena {
-
-  uint32 activity_id = 1;
-}
+message ReqEnterArena { uint32 activity_id = 1; }
 
 message ResArenaReward {
 
@@ -4749,10 +4545,7 @@ message ResArenaReward {
   }
 }
 
-message ReqReceiveRPGRewards {
-
-  uint32 activity_id = 1;
-}
+message ReqReceiveRPGRewards { uint32 activity_id = 1; }
 
 message ReqReceiveRPGReward {
 
@@ -4772,10 +4565,7 @@ message ResReceiveRPGRewards {
   }
 }
 
-message ReqFetchOBToken {
-
-  string uuid = 1;
-}
+message ReqFetchOBToken { string uuid = 1; }
 
 message ResFetchOBToken {
 
@@ -4842,13 +4632,13 @@ message ReqReceiveActivityGift {
   uint32 id = 2;
 }
 
-message ReqFetchFriendFeedActivityData {
+message ReqFetchFriendGiftActivityData {
 
   uint32 activity_id = 1;
   repeated uint32 account_list = 2;
 }
 
-message ResFetchFriendFeedActivityData {
+message ResFetchFriendGiftActivityData {
 
   Error error = 1;
   repeated FriendData list = 2;
@@ -4879,10 +4669,7 @@ message ResOpenPreChestItem {
   repeated OpenResult results = 2;
 }
 
-message ReqFetchVoteActivity {
-
-  uint32 activity_id = 1;
-}
+message ReqFetchVoteActivity { uint32 activity_id = 1; }
 
 message ResFetchVoteActivity {
 
@@ -4909,10 +4696,7 @@ message ReqUnlockActivitySpot {
   uint32 ending_id = 2;
 }
 
-message ReqReceiveActivitySpotReward {
-
-  uint32 unique_id = 1;
-}
+message ReqReceiveActivitySpotReward { uint32 unique_id = 1; }
 
 message ResReceiveActivitySpotReward {
 
@@ -4938,10 +4722,7 @@ message ReqBindOauth2 {
   string token = 2;
 }
 
-message ReqFetchOauth2 {
-
-  uint32 type = 1;
-}
+message ReqFetchOauth2 { uint32 type = 1; }
 
 message ResFetchOauth2 {
 
@@ -4955,10 +4736,7 @@ message ResDeleteAccount {
   uint32 delete_time = 2;
 }
 
-message ReqSetLoadingImage {
-
-  repeated uint32 images = 1;
-}
+message ReqSetLoadingImage { repeated uint32 images = 1; }
 
 message ResFetchShopInterval {
 
@@ -4972,14 +4750,25 @@ message ResFetchShopInterval {
   }
 }
 
+message ResFetchActivityInterval {
+
+  Error error = 1;
+  repeated ActivityInterval result = 2;
+
+  message ActivityInterval {
+
+    uint32 activity_id = 1;
+    uint32 interval = 2;
+  }
+}
+
 message ResFetchrecentFriend {
 
   Error error = 1;
   repeated uint32 account_list = 2;
 }
 
-message ActionMJStart {
-}
+message ActionMJStart {}
 
 message NewRoundOpenedTiles {
 
@@ -5005,15 +4794,9 @@ message ChuanmaGang {
   repeated HuleInfo hules_history = 5;
 }
 
-message ActionNewCard {
+message ActionNewCard { uint32 field_spell = 1; }
 
-  uint32 field_spell = 1;
-}
-
-message RecordNewCard {
-
-  uint32 field_spell = 1;
-}
+message RecordNewCard { uint32 field_spell = 1; }
 
 message ActionNewRound {
 
@@ -5135,10 +4918,7 @@ message GameChiPengGang {
   uint32 timeuse = 6;
 }
 
-message GameVoteGameEnd {
-
-  bool yes = 1;
-}
+message GameVoteGameEnd { bool yes = 1; }
 
 message GameUserInput {
 
@@ -5243,10 +5023,7 @@ message TingPaiDiscardInfo {
   repeated TingPaiInfo infos = 3;
 }
 
-message GameEnd {
-
-  repeated int32 scores = 1;
-}
+message GameEnd { repeated int32 scores = 1; }
 
 message ActionSelectGap {
 
@@ -5443,6 +5220,7 @@ message ActionFillAwaitingTiles {
   repeated string awaiting_tiles = 1;
   uint32 left_tile_count = 2;
   OptionalOperationList operation = 3;
+  LiQiSuccess liqi = 4;
 }
 
 message RecordFillAwaitingTiles {
@@ -5450,6 +5228,7 @@ message RecordFillAwaitingTiles {
   repeated string awaiting_tiles = 1;
   uint32 left_tile_count = 2;
   OptionalOperationList operation = 3;
+  LiQiSuccess liqi = 4;
 }
 
 message ActionChiPengGang {
@@ -5483,25 +5262,13 @@ message RecordChiPengGang {
   uint32 liqibang = 12;
 }
 
-message ActionGangResult {
+message ActionGangResult { ChuanmaGang gang_infos = 1; }
 
-  ChuanmaGang gang_infos = 1;
-}
+message RecordGangResult { ChuanmaGang gang_infos = 1; }
 
-message RecordGangResult {
+message ActionGangResultEnd { ChuanmaGang gang_infos = 1; }
 
-  ChuanmaGang gang_infos = 1;
-}
-
-message ActionGangResultEnd {
-
-  ChuanmaGang gang_infos = 1;
-}
-
-message RecordGangResultEnd {
-
-  ChuanmaGang gang_infos = 1;
-}
+message RecordGangResultEnd { ChuanmaGang gang_infos = 1; }
 
 message ActionAnGangAddGang {
 
@@ -5703,28 +5470,25 @@ message RecordNoTile {
   repeated HuleInfo hules_history = 9;
 }
 
-message PlayerLeaving {
-
-  uint32 seat = 1;
-}
+message PlayerLeaving { uint32 seat = 1; }
 service FastTest {
-  rpc authGame (ReqAuthGame) returns (ResAuthGame);
-  rpc enterGame (ReqCommon) returns (ResEnterGame);
-  rpc syncGame (ReqSyncGame) returns (ResSyncGame);
-  rpc finishSyncGame (ReqCommon) returns (ResCommon);
-  rpc terminateGame (ReqCommon) returns (ResCommon);
-  rpc inputOperation (ReqSelfOperation) returns (ResCommon);
-  rpc inputChiPengGang (ReqChiPengGang) returns (ResCommon);
-  rpc confirmNewRound (ReqCommon) returns (ResCommon);
-  rpc broadcastInGame (ReqBroadcastInGame) returns (ResCommon);
-  rpc inputGameGMCommand (ReqGMCommandInGaming) returns (ResCommon);
-  rpc fetchGamePlayerState (ReqCommon) returns (ResGamePlayerState);
-  rpc checkNetworkDelay (ReqCommon) returns (ResCommon);
-  rpc clearLeaving (ReqCommon) returns (ResCommon);
-  rpc voteGameEnd (ReqVoteGameEnd) returns (ResGameEndVote);
-  rpc authObserve (ReqAuthObserve) returns (ResCommon);
-  rpc startObserve (ReqCommon) returns (ResStartObserve);
-  rpc stopObserve (ReqCommon) returns (ResCommon);
+  rpc authGame(ReqAuthGame) returns (ResAuthGame);
+  rpc enterGame(ReqCommon) returns (ResEnterGame);
+  rpc syncGame(ReqSyncGame) returns (ResSyncGame);
+  rpc finishSyncGame(ReqCommon) returns (ResCommon);
+  rpc terminateGame(ReqCommon) returns (ResCommon);
+  rpc inputOperation(ReqSelfOperation) returns (ResCommon);
+  rpc inputChiPengGang(ReqChiPengGang) returns (ResCommon);
+  rpc confirmNewRound(ReqCommon) returns (ResCommon);
+  rpc broadcastInGame(ReqBroadcastInGame) returns (ResCommon);
+  rpc inputGameGMCommand(ReqGMCommandInGaming) returns (ResCommon);
+  rpc fetchGamePlayerState(ReqCommon) returns (ResGamePlayerState);
+  rpc checkNetworkDelay(ReqCommon) returns (ResCommon);
+  rpc clearLeaving(ReqCommon) returns (ResCommon);
+  rpc voteGameEnd(ReqVoteGameEnd) returns (ResGameEndVote);
+  rpc authObserve(ReqAuthObserve) returns (ResCommon);
+  rpc startObserve(ReqCommon) returns (ResStartObserve);
+  rpc stopObserve(ReqCommon) returns (ResCommon);
 }
 
 message ReqAuthGame {
@@ -5807,10 +5571,7 @@ message ReqBroadcastInGame {
   bool except_self = 2;
 }
 
-message ReqGMCommandInGaming {
-
-  string json_data = 1;
-}
+message ReqGMCommandInGaming { string json_data = 1; }
 
 message ResGamePlayerState {
 
@@ -5818,10 +5579,7 @@ message ResGamePlayerState {
   repeated GamePlayerState state_list = 2;
 }
 
-message ReqVoteGameEnd {
-
-  bool yes = 1;
-}
+message ReqVoteGameEnd { bool yes = 1; }
 
 message ResGameEndVote {
 
@@ -5830,10 +5588,7 @@ message ResGameEndVote {
   Error error = 3;
 }
 
-message ReqAuthObserve {
-
-  string token = 1;
-}
+message ReqAuthObserve { string token = 1; }
 
 message ResStartObserve {
 
@@ -5847,10 +5602,7 @@ message NotifyNewGame {
   repeated string player_list = 2;
 }
 
-message NotifyPlayerLoadGameReady {
-
-  repeated uint32 ready_id_list = 1;
-}
+message NotifyPlayerLoadGameReady { repeated uint32 ready_id_list = 1; }
 
 message NotifyGameBroadcast {
 
@@ -5858,15 +5610,9 @@ message NotifyGameBroadcast {
   string content = 2;
 }
 
-message NotifyGameEndResult {
+message NotifyGameEndResult { GameEndResult result = 1; }
 
-  GameEndResult result = 1;
-}
-
-message NotifyGameTerminate {
-
-  string reason = 1;
-}
+message NotifyGameTerminate { string reason = 1; }
 
 message NotifyPlayerConnectionState {
 
@@ -5954,10 +5700,7 @@ message NotifyLeaderboardPoint {
   }
 }
 
-message NotifyGamePause {
-
-  bool paused = 1;
-}
+message NotifyGamePause { bool paused = 1; }
 
 message NotifyEndGameVote {
 
@@ -5972,7 +5715,4 @@ message NotifyEndGameVote {
   }
 }
 
-message NotifyObserveData {
-
-  GameLiveUnit unit = 1;
-}
+message NotifyObserveData { GameLiveUnit unit = 1; }
