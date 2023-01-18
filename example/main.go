@@ -2,12 +2,20 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"time"
 
 	"github.com/constellation39/majsoul"
 	"github.com/constellation39/majsoul/message"
 )
+
+var account, password string
+
+func init() {
+	flag.StringVar(&account, "account", "", "account required for login")
+	flag.StringVar(&password, "password", "", "password required for login")
+}
 
 // Majsoul 组合库中的 Majsoul 结构
 type Majsoul struct {
@@ -36,8 +44,18 @@ func NewMajsoul() *Majsoul {
 }
 
 func main() {
+	flag.Parse()
+
+	if len(account) == 0 {
+		log.Fatal("account is null")
+	}
+
+	if len(password) == 0 {
+		log.Fatal("password is null")
+	}
+
 	mSoul := NewMajsoul()
-	resLogin, err := mSoul.Login("account", "password")
+	resLogin, err := mSoul.Login(account, password)
 	if err != nil {
 		log.Fatal(err)
 	}
