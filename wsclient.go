@@ -84,7 +84,9 @@ func (client *wsClient) reConnect(ctx context.Context) {
 	for {
 		if client.Connect(ctx) == nil {
 			client.curReconnectNumber = 0
-			client.HandleReConn()
+			if client.HandleReConn != nil {
+				client.HandleReConn()
+			}
 			return
 		}
 		client.curReconnectNumber++
