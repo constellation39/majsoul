@@ -8,6 +8,8 @@ import (
 	"github.com/constellation39/majsoul/logger"
 	"go.uber.org/zap"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"nhooyr.io/websocket"
 	"strings"
 	"sync"
@@ -98,8 +100,22 @@ func (client *wsClient) reConnect(ctx context.Context) {
 }
 
 func (client *wsClient) Connect(ctx context.Context) error {
+	jar, _ := cookiejar.New(nil)
+	httpClient := &http.Client{
+		Transport:     &http.Transport{},
+		CheckRedirect: nil,
+		Jar:           jar,
+		Timeout:       time.Minute,
+	}
+	if len(client.wsConfig.proxyAddr) > 0 {
+		proxy := func(_ *http.Request) (*url.URL, error) {
+			return url.Parse(client.wsConfig.proxyAddr)
+		}
+		transport := &http.Transport{Proxy: proxy}
+		httpClient.Transport = transport
+	}
 	conn, _, err := websocket.Dial(ctx, client.connAddr, &websocket.DialOptions{
-		HTTPClient:           nil,
+		HTTPClient:           httpClient,
 		HTTPHeader:           client.HTTPHeader,
 		Subprotocols:         nil,
 		CompressionMode:      0,
