@@ -244,10 +244,11 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 	client.mu.Lock()
 	client.msgIndex %= 255
 	client.msgIndex++
+	index := client.msgIndex
 	client.mu.Unlock()
 	buff.WriteByte(MsgTypeRequest)
-	buff.WriteByte(client.msgIndex - (client.msgIndex >> 7 << 7))
-	buff.WriteByte(client.msgIndex >> 7)
+	buff.WriteByte(index - (index >> 7 << 7))
+	buff.WriteByte(index >> 7)
 	buff.Write(body)
 
 	err = client.conn.Write(ctx, websocket.MessageBinary, buff.Bytes())
@@ -259,7 +260,7 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 	reply := &Reply{
 		out:      nil,
 		wait:     make(chan struct{}),
-		msgIndex: client.msgIndex,
+		msgIndex: index,
 	}
 
 	if _, ok := client.replyMap.LoadOrStore(reply.msgIndex, reply); ok {
