@@ -2,7 +2,6 @@ package message
 
 import (
 	"github.com/golang/protobuf/proto"
-	"log"
 )
 
 // GetNotifyType 通过api名字返回具体的结构类型
@@ -171,7 +170,6 @@ func GetNotifyType(name string) (ret proto.Message) {
 	case ".lq.ActionPrototype":
 		ret = &ActionPrototype{}
 	default:
-		log.Printf("message.GetNotifyType unknown message type: %s \n", name)
 	}
 	return
 }
@@ -222,7 +220,6 @@ func GetActionType(name string) (ret proto.Message) {
 	case "ActionNoTile":
 		ret = &ActionNoTile{}
 	default:
-		log.Printf("message.GetActionType unknown message type: %s \n", name)
 	}
 	return
 }

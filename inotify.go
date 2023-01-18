@@ -5,6 +5,7 @@ import "github.com/constellation39/majsoul/message"
 // IFNotify
 // 雀魂proto协议中缺少描述监听消息的接口
 // 故添加该接口，可能会丢失某些api
+// 有没有更聪明点的办法？
 type IFNotify interface {
 	NotifyCaptcha(notify *message.NotifyCaptcha)
 	NotifyRoomGameStart(notify *message.NotifyRoomGameStart)

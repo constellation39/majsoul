@@ -47,7 +47,6 @@ func newRequest(hostAddr, proxyAddr string) *request {
 
 func (request *request) Get(path string) ([]byte, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s", request.Host, path), nil)
-
 	if err != nil {
 		return nil, err
 	}
@@ -57,13 +56,11 @@ func (request *request) Get(path string) ([]byte, error) {
 
 func (request *request) Post(path string, body interface{}) ([]byte, error) {
 	data, err := json.Marshal(body)
-
 	if err != nil {
 		return nil, err
 	}
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/%s", request.Host, path), bytes.NewReader(data))
-
 	if err != nil {
 		return nil, err
 	}
@@ -74,11 +71,9 @@ func (request *request) Post(path string, body interface{}) ([]byte, error) {
 func (request *request) do(req *http.Request) ([]byte, error) {
 	req.Header = request.header
 	res, err := request.client.Do(req)
-
 	if err != nil {
 		return nil, err
 	}
-
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("%s", res.Status)
 	}
@@ -89,8 +84,8 @@ func (request *request) do(req *http.Request) ([]byte, error) {
 			panic(err)
 		}
 	}(res.Body)
-	resData, err := io.ReadAll(res.Body)
 
+	resData, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +96,7 @@ func (request *request) do(req *http.Request) ([]byte, error) {
 func (request *request) GetHeader(key string) ([]string, bool) {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
+
 	if kv, ok := request.header[key]; ok {
 		return kv, ok
 	}
@@ -110,20 +106,26 @@ func (request *request) GetHeader(key string) ([]string, bool) {
 func (request *request) DelHeader(key string) *request {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
+
 	request.header.Del(key)
+
 	return request
 }
 
 func (request *request) SetHeader(key, value string) *request {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
+
 	request.header.Set(key, value)
+
 	return request
 }
 
 func (request *request) AddHeader(key, value string) *request {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
+
 	request.header.Add(key, value)
+
 	return request
 }

@@ -144,11 +144,11 @@ func (client *wsClient) readLoop(ctx context.Context) {
 	for {
 		t, payload, err := client.conn.Read(ctx)
 		if err != nil {
-			logger.Error("wsClient.readLoop", zap.String("connAdder", client.connAddr), zap.String("connAdder", client.proxyAddr), zap.Error(err))
+			logger.Error("ws read: ", zap.String("connAdder", client.connAddr), zap.String("proxyAddr", client.proxyAddr), zap.Error(err))
 			break
 		}
 		if t != websocket.MessageBinary {
-			logger.Info("wsClient.readLoop t != websocket.BinaryMessage", zap.Int("t", int(t)))
+			logger.Info("unsupported message types: ", zap.Int("t", int(t)))
 			continue
 		}
 		switch payload[0] {
@@ -157,7 +157,7 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		case MsgTypeResponse:
 			client.handleResponse(payload)
 		default:
-			logger.Info("wsClient.readLoop unknown msg type: ", zap.Uint8("value", payload[0]))
+			logger.Info("unknown message types: ", zap.Uint8("value", payload[0]))
 		}
 		select {
 		case <-ctx.Done():
@@ -173,17 +173,17 @@ func (client *wsClient) handleNotify(msg []byte) {
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[1:], wrapper)
 	if err != nil {
-		logger.Error("wsClient.handleNotify unmarshal error: ", zap.Error(err))
+		logger.Error("notify messages unmarshal error: ", zap.Error(err))
 		return
 	}
 	pm := message.GetNotifyType(wrapper.Name)
 	if pm == nil {
-		logger.Error("wsClient.handleNotify unknown notify type: ", zap.String("wrapper.Name", wrapper.Name))
+		logger.Error("unknown notify type: ", zap.String("wrapper.Name", wrapper.Name))
 		return
 	}
 	err = proto.Unmarshal(wrapper.Data, pm)
 	if err != nil {
-		logger.Error("wsClient.handleNotify unmarshal error: ", zap.Error(err))
+		logger.Error("notify type unmarshal error: ", zap.Reflect("notify type", pm), zap.Error(err))
 		return
 	}
 	client.notify <- pm
@@ -197,18 +197,18 @@ func (client *wsClient) handleResponse(msg []byte) {
 	}
 	reply, ok := v.(*Reply)
 	if !ok {
-		logger.Error("wsClient.handleResponse rv not proto.Message: ", zap.Reflect("reply", reply))
+		logger.Error("response type not proto.Message: ", zap.Reflect("reply", reply))
 		return
 	}
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[3:], wrapper)
 	if err != nil {
-		logger.Error("wsClient.handleResponse unmarshal error: ", zap.Error(err))
+		logger.Error("response message unmarshal error: ", zap.Error(err))
 		return
 	}
 	err = proto.Unmarshal(wrapper.Data, reply.out)
 	if err != nil {
-		logger.Error("wsClient.handleResponse unmarshal error: ", zap.Error(err))
+		logger.Error("response type unmarshal error: ", zap.Error(err))
 		return
 	}
 	close(reply.wait)
@@ -279,7 +279,7 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 	}
 
 	if _, ok := client.replyMap.LoadOrStore(reply.msgIndex, reply); ok {
-		return nil, fmt.Errorf("index exists %d", reply.msgIndex)
+		return nil, fmt.Errorf("message index exists %d", reply.msgIndex)
 	}
 
 	return reply, nil

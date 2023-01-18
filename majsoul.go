@@ -22,11 +22,6 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-var (
-	ErrorShutdownSignal    = errors.New("receive shutdown signal")
-	ErrorNoServerAvailable = errors.New("no server available")
-)
-
 const (
 	MsgTypeNotify   uint8 = 1
 	MsgTypeRequest  uint8 = 2
@@ -48,6 +43,11 @@ const (
 	charSet   = "0123456789abcdefghijklmnopqrstuvwxyz"
 	uuidFile  = ".UUID"
 	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54"
+)
+
+var (
+	ErrorNoServerAvailable = errors.New("no server available")
+	ErrorShutdownSignal    = errors.New("receive shutdown signal")
 )
 
 type Implement interface {
@@ -189,6 +189,7 @@ func (majsoul *Majsoul) tryNew() (err error) {
 
 func (majsoul *Majsoul) ReConn() {
 	//majsoul.LobbyClient.Oauth2Check()
+	//TODO If you are logged in
 }
 
 func (majsoul *Majsoul) init() (err error) {
@@ -432,7 +433,7 @@ func (majsoul *Majsoul) handleNotify(data proto.Message) {
 	case *message.ActionPrototype:
 		majsoul.Implement.ActionPrototype(notify)
 	default:
-		logger.Info("Majsoul.handleNotify no path found", zap.Reflect("notify.Name", notify))
+		logger.Info("unknown notify type", zap.Reflect("notify", notify))
 	}
 }
 
