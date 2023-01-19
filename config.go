@@ -10,12 +10,12 @@ type ServerAddress struct {
 var ServerAddressList = []*ServerAddress{
 	{
 		ServerAddress:  "https://game.maj-soul.net",
-		GatewayAddress: "wss://gateway-hw.maj-soul.net/gateway",
+		GatewayAddress: "wss://gateway-hw.maj-soul.com/gateway",
 		GameAddress:    "wss://gateway-hw.maj-soul.com/game-gateway",
 	},
 	{
 		ServerAddress:  "https://game.maj-soul.com",
-		GatewayAddress: "wss://gateway-sy.maj-soul.com/gateway",
-		GameAddress:    "wss://gateway-sy.maj-soul.com/game-gateway",
+		GatewayAddress: "wss://gateway-v2.maj-soul.com/gateway",
+		GameAddress:    "wss://gateway-v2.maj-soul.com/game-gateway",
 	},
 }
