@@ -161,7 +161,7 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		}
 		select {
 		case <-ctx.Done():
-			break
+			return
 		default:
 		}
 	}
