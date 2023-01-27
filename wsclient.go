@@ -37,8 +37,9 @@ type wsClient struct {
 	*wsConfig
 	curReconnectNumber int
 
-	conn *websocket.Conn
-	open bool
+	conn  *websocket.Conn
+	open  bool
+	close chan struct{}
 
 	msgIndex uint8
 	replyMap sync.Map // map[uint8]*Reply
@@ -72,6 +73,11 @@ func (client *wsClient) Close() {
 	if client.conn != nil {
 		_ = client.conn.Close(websocket.StatusNormalClosure, "")
 	}
+	_, ok := <-client.close
+	if ok {
+		close(client.close)
+	}
+	close(client.close)
 	client.open = false
 	client.mu.Unlock()
 }
@@ -124,6 +130,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 	conn.SetReadLimit(1048576)
 	client.conn = conn
 	client.open = true
+	client.close = make(chan struct{})
 	client.mu.Unlock()
 
 	go client.readLoop(ctx)
@@ -141,6 +148,9 @@ func (client *wsClient) readLoop(ctx context.Context) {
 	if !client.IsOpen() {
 		return
 	}
+	defer func() {
+		client.Close()
+	}()
 	for {
 		t, payload, err := client.conn.Read(ctx)
 		if err != nil {
@@ -165,7 +175,6 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		default:
 		}
 	}
-	client.Close()
 	go client.reConnect(ctx)
 }
 
@@ -288,6 +297,8 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 func (client *wsClient) RecvMsg(ctx context.Context, reply *Reply) error {
 	defer client.replyMap.Delete(reply.msgIndex)
 	select {
+	case <-client.close:
+		return ErrNotConnected
 	case <-ctx.Done():
 	case <-reply.wait:
 	}

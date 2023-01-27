@@ -190,6 +190,7 @@ func (majsoul *Majsoul) tryNew() (err error) {
 func (majsoul *Majsoul) ReConn() {
 	//majsoul.LobbyClient.Oauth2Check()
 	//TODO If you are logged in
+	//什么时候写啊啊啊啊啊啊
 }
 
 func (majsoul *Majsoul) init() (err error) {
