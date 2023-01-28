@@ -77,7 +77,6 @@ func (client *wsClient) Close() {
 	if ok {
 		close(client.close)
 	}
-	close(client.close)
 	client.open = false
 	client.mu.Unlock()
 }
