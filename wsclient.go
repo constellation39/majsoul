@@ -3,7 +3,6 @@ package majsoul
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"github.com/constellation39/majsoul/logger"
 	"go.uber.org/zap"
@@ -18,10 +17,6 @@ import (
 	"github.com/constellation39/majsoul/message"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
-)
-
-var (
-	ErrNotConnected = errors.New("websocket not connected")
 )
 
 type wsConfig struct {
@@ -136,21 +131,11 @@ func (client *wsClient) Connect(ctx context.Context) error {
 	return nil
 }
 
-func (client *wsClient) IsOpen() bool {
-	client.mu.Lock()
-	defer client.mu.Unlock()
-
-	return client.open
-}
-
 func (client *wsClient) readLoop(ctx context.Context) {
-	if !client.IsOpen() {
-		return
-	}
 	for {
 		t, payload, err := client.conn.Read(ctx)
 		if err != nil {
-			logger.Error("ws read: ", zap.String("connAdder", client.connAddr), zap.String("proxyAddr", client.proxyAddr), zap.Error(err))
+			//logger.Error("ws read: ", zap.String("connAdder", client.connAddr), zap.String("proxyAddr", client.proxyAddr), zap.Error(err))
 			break
 		}
 		if t != websocket.MessageBinary {
@@ -238,12 +223,6 @@ func (client *wsClient) Invoke(ctx context.Context, method string, in interface{
 }
 
 func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Message) (_ *Reply, err error) {
-	err = ErrNotConnected
-
-	if !client.IsOpen() {
-		return
-	}
-
 	var body []byte
 
 	body, err = proto.Marshal(in)
@@ -295,7 +274,7 @@ func (client *wsClient) RecvMsg(ctx context.Context, reply *Reply) error {
 	defer client.replyMap.Delete(reply.msgIndex)
 	select {
 	case <-client.close:
-		return ErrNotConnected
+		return websocket.CloseError{}
 	case <-ctx.Done():
 	case <-reply.wait:
 	}

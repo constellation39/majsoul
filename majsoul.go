@@ -225,6 +225,8 @@ func (majsoul *Majsoul) heatbeat() {
 	t2 := time.NewTicker(time.Second * 2)
 	for {
 		select {
+		case <-majsoul.Ctx.Done():
+			return
 		case <-t3.C:
 			if majsoul.FastTestConn != nil {
 				continue
