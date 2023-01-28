@@ -126,12 +126,6 @@ func New(config *Config) (majsoul *Majsoul, err error) {
 func (majsoul *Majsoul) Close() {
 	majsoul.once.Do(func() {
 		majsoul.cancel()
-		if majsoul.LobbyConn != nil {
-			majsoul.LobbyConn.Close()
-		}
-		if majsoul.FastTestConn != nil {
-			majsoul.FastTestConn.Close()
-		}
 	})
 }
 

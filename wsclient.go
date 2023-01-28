@@ -147,9 +147,6 @@ func (client *wsClient) readLoop(ctx context.Context) {
 	if !client.IsOpen() {
 		return
 	}
-	defer func() {
-		client.Close()
-	}()
 	for {
 		t, payload, err := client.conn.Read(ctx)
 		if err != nil {
@@ -168,13 +165,14 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		default:
 			logger.Info("unknown message types: ", zap.Uint8("value", payload[0]))
 		}
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
 	}
-	go client.reConnect(ctx)
+	select {
+	case <-ctx.Done():
+		client.Close()
+		return
+	default:
+		go client.reConnect(ctx)
+	}
 }
 
 func (client *wsClient) handleNotify(msg []byte) {
