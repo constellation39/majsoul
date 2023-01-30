@@ -95,14 +95,14 @@ type Majsoul struct {
 	once sync.Once
 }
 
-func New(config *Config) (majsoul *Majsoul, err error) {
+func New(ctx context.Context, config *Config) (majsoul *Majsoul, err error) {
 	majsoul = &Majsoul{
 		Config: config,
 		State:  &State{},
 		UUID:   uuid(),
 	}
 
-	majsoul.Ctx, majsoul.cancel = context.WithCancel(context.Background())
+	majsoul.Ctx, majsoul.cancel = context.WithCancel(ctx)
 
 	if len(config.ServerAddressList) == 0 {
 		config.ServerAddressList = ServerAddressList
@@ -457,12 +457,12 @@ func hashPassword(data string) string {
 
 // message.LobbyClient
 
-func (majsoul *Majsoul) Login(account, password string) (*message.ResLogin, error) {
+func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*message.ResLogin, error) {
 	var t uint32
 	if strings.Index(account, "@") == -1 {
 		t = 1
 	}
-	loginRes, err := majsoul.LobbyClient.Login(majsoul.Ctx, &message.ReqLogin{
+	loginRes, err := majsoul.LobbyClient.Login(ctx, &message.ReqLogin{
 		Account:   account,
 		Password:  hashPassword(password),
 		Reconnect: false,

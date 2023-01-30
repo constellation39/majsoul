@@ -132,6 +132,14 @@ func (client *wsClient) Connect(ctx context.Context) error {
 }
 
 func (client *wsClient) readLoop(ctx context.Context) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Error("catch exception", zap.Any("err", err))
+			client.Close()
+			go client.reConnect(ctx)
+		}
+	}()
+
 	for {
 		t, payload, err := client.conn.Read(ctx)
 		if err != nil {
@@ -246,6 +254,7 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 	client.msgIndex++
 	index := client.msgIndex
 	client.mu.Unlock()
+
 	buff.WriteByte(MsgTypeRequest)
 	buff.WriteByte(index - (index >> 7 << 7))
 	buff.WriteByte(index >> 7)
