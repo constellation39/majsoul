@@ -37,6 +37,7 @@ func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart)
 		ReconnectInterval: majsoul.Config.ReconnectInterval,
 		ReconnectNumber:   majsoul.Config.ReconnectNumber,
 	})
+	err = majsoul.FastTestConn.Connect(majsoul.Ctx)
 	if err != nil {
 		logger.Error("failed to connect to GameServer: ", zap.String("GameAddress", majsoul.ServerAddress.GameAddress), zap.Error(err))
 		return

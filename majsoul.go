@@ -494,7 +494,7 @@ func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*m
 	if err != nil {
 		return nil, err
 	}
-	if loginRes.Error != nil {
+	if loginRes.Error == nil {
 		majsoul.Account = loginRes.Account
 		majsoul.State.Login = true
 	}
