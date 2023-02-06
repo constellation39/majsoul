@@ -23,23 +23,46 @@ import (
 )
 
 const (
-	MsgTypeNotify   uint8 = 1
-	MsgTypeRequest  uint8 = 2
-	MsgTypeResponse uint8 = 3
+	MsgTypeNotify   uint8 = 1 // 通知
+	MsgTypeRequest  uint8 = 2 // 请求
+	MsgTypeResponse uint8 = 3 // 回复
 
-	Discard = 1
-	Chi     = 2
-	Pon     = 3
-	AnKAN   = 4
-	MinKan  = 5
-	KaKan   = 6
-	Riichi  = 7
-	Tsumo   = 8
-	Ron     = 9
-	Kuku    = 10
-	Kita    = 11
-	Pass    = 12
+	ActDiscard = 1  // 出牌
+	ActChi     = 2  // 吃
+	ActPon     = 3  // 碰
+	ActAnKAN   = 4  // 暗槓
+	ActMinKan  = 5  // 明槓
+	ActKaKan   = 6  // 加槓
+	ActRiichi  = 7  // 立直
+	ActTsumo   = 8  // 自摸
+	ActRon     = 9  // 栄和
+	ActKuku    = 10 // 九九流局
+	ActKita    = 11 // 北
+	ActPass    = 12 // 見逃
 
+	Chi   = 0
+	Pon   = 1
+	Kan   = 2
+	AnKan = 3
+	KaKan = 4
+
+	EBakaze = 0 // 东风
+	SBakaze = 1 // 南风
+	WBakaze = 2 // 西风
+	NBakaze = 3 // 北风
+
+	Toncha = 0 // 東家
+	Nancha = 1 // 南家
+	ShaCha = 2 // 西家
+	Peicha = 3 // 北家
+
+	Kyoku1 = 0 // 第1局
+	Kyoku2 = 1 // 第2局
+	Kyoku3 = 2 // 第3局
+	Kyoku4 = 3 // 第4局
+)
+
+const (
 	charSet   = "0123456789abcdefghijklmnopqrstuvwxyz"
 	uuidFile  = ".UUID"
 	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54"

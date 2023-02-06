@@ -29,7 +29,7 @@ func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart)
 	header.Add("Pragma", "no-cache")
 	header.Add("User-Agent", UserAgent)
 
-	majsoul.FastTestConn = newWsClient(&wsConfig{
+	clinet := newWsClient(&wsConfig{
 		connAddr:          majsoul.ServerAddress.GameAddress,
 		proxyAddr:         majsoul.Config.GameProxy,
 		HTTPHeader:        header,
@@ -37,12 +37,13 @@ func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart)
 		ReconnectInterval: majsoul.Config.ReconnectInterval,
 		ReconnectNumber:   majsoul.Config.ReconnectNumber,
 	})
-	err = majsoul.FastTestConn.Connect(majsoul.Ctx)
+	err = clinet.Connect(majsoul.Ctx)
 	if err != nil {
 		logger.Error("failed to connect to GameServer: ", zap.String("GameAddress", majsoul.ServerAddress.GameAddress), zap.Error(err))
 		return
 	}
 
+	majsoul.FastTestConn = clinet
 	majsoul.FastTestClient = message.NewFastTestClient(majsoul.FastTestConn)
 
 	go majsoul.receiveGame()
