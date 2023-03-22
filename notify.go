@@ -1,12 +1,13 @@
 package majsoul
 
 import (
+	"net/http"
+	"net/url"
+
 	"github.com/constellation39/majsoul/logger"
 	"github.com/constellation39/majsoul/message"
 	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
-	"net/http"
-	"net/url"
 )
 
 // IFNotify is the interface that must be implemented by a receiver.
