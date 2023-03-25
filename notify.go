@@ -31,10 +31,9 @@ func (majsoul *Majsoul) NotifyRoomGameStart(notify *message.NotifyRoomGameStart)
 	header.Add("User-Agent", UserAgent)
 
 	clinet := newWsClient(&wsConfig{
-		connAddr:          majsoul.ServerAddress.GameAddress,
-		proxyAddr:         majsoul.Config.GameProxy,
-		HTTPHeader:        header,
-		Reconnect:         majsoul.Config.Reconnect,
+		ConnAddress:       majsoul.ServerAddress.GameAddress,
+		ProxyAddress:      majsoul.Config.GameProxy,
+		RequestHeaders:    header,
 		ReconnectInterval: majsoul.Config.ReconnectInterval,
 		ReconnectNumber:   majsoul.Config.ReconnectNumber,
 	})
@@ -361,6 +360,6 @@ func (majsoul *Majsoul) ActionPrototype(notify *message.ActionPrototype) {
 	case "ActionNoTile":
 		majsoul.Implement.ActionNoTile(data.(*message.ActionNoTile))
 	default:
-		logger.Info("unknown notify name: ", zap.String("name", notify.Name))
+		logger.Error("unknown notify name: ", zap.String("name", notify.Name))
 	}
 }

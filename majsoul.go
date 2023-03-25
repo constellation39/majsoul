@@ -9,14 +9,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/constellation39/majsoul/logger"
-	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/constellation39/majsoul/logger"
+	"go.uber.org/zap"
 
 	"github.com/constellation39/majsoul/message"
 	"github.com/golang/protobuf/proto"
@@ -182,14 +183,13 @@ func (majsoul *Majsoul) tryNew() (err error) {
 			continue
 		}
 		client := newWsClient(&wsConfig{
-			connAddr:          serverAddress.GatewayAddress,
-			proxyAddr:         majsoul.Config.GatewayProxy,
-			HTTPHeader:        header,
-			Reconnect:         majsoul.Config.Reconnect,
+			ConnAddress:       serverAddress.GatewayAddress,
+			ProxyAddress:      majsoul.Config.GatewayProxy,
+			RequestHeaders:    header,
 			ReconnectInterval: majsoul.Config.ReconnectInterval,
 			ReconnectNumber:   majsoul.Config.ReconnectNumber,
 		})
-		client.HandleReConn = majsoul.ReConn
+		client.ReconnectHandler = majsoul.ReConn
 		err = client.Connect(majsoul.Ctx)
 		if err != nil {
 			continue
