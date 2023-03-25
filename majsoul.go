@@ -28,24 +28,24 @@ const (
 	MsgTypeRequest  uint8 = 2 // 请求
 	MsgTypeResponse uint8 = 3 // 回复
 
-	ActDiscard = 1  // 出牌
-	ActChi     = 2  // 吃
-	ActPon     = 3  // 碰
-	ActAnKAN   = 4  // 暗槓
-	ActMinKan  = 5  // 明槓
-	ActKaKan   = 6  // 加槓
-	ActRiichi  = 7  // 立直
-	ActTsumo   = 8  // 自摸
-	ActRon     = 9  // 栄和
-	ActKuku    = 10 // 九九流局
-	ActKita    = 11 // 北
-	ActPass    = 12 // 見逃
+	ActionDiscard = 1  // 出牌
+	ActionChi     = 2  // 吃
+	ActionPon     = 3  // 碰
+	ActionAnKAN   = 4  // 暗槓
+	ActionMinKan  = 5  // 明槓
+	ActionKaKan   = 6  // 加槓
+	ActionRiichi  = 7  // 立直
+	ActionTsumo   = 8  // 自摸
+	ActionRon     = 9  // 栄和
+	ActionKuku    = 10 // 九九流局
+	ActionKita    = 11 // 北
+	ActionPass    = 12 // 見逃
 
-	Chi   = 0
-	Pon   = 1
-	Kan   = 2
-	AnKan = 3
-	KaKan = 4
+	NotifyChi   = 0 // 吃
+	NotifyPon   = 1 // 碰
+	NotifyKan   = 2 // 杠
+	NotifyAnKan = 3 // 暗杠
+	NotifyKaKan = 4 // 加杠
 
 	EBakaze = 0 // 东风
 	SBakaze = 1 // 南风
