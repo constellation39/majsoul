@@ -89,10 +89,6 @@ type Config struct {
 	ReconnectNumber   int
 }
 
-type State struct {
-	Login bool
-}
-
 // Majsoul majsoul wsClient
 type Majsoul struct {
 	Ctx    context.Context
@@ -112,7 +108,6 @@ type Majsoul struct {
 	Version       *Version // 初始化时获取的版本信息
 
 	Config   *Config
-	State    *State
 	Account  *message.Account     // 该字段应在登录成功后访问
 	GameInfo *message.ResAuthGame // 该字段应在进入游戏桌面后访问
 
@@ -122,7 +117,6 @@ type Majsoul struct {
 func New(ctx context.Context, config *Config) (majsoul *Majsoul, err error) {
 	majsoul = &Majsoul{
 		Config: config,
-		State:  &State{},
 		UUID:   uuid(),
 	}
 
@@ -189,7 +183,6 @@ func (majsoul *Majsoul) tryNew() (err error) {
 			ReconnectInterval: majsoul.Config.ReconnectInterval,
 			ReconnectNumber:   majsoul.Config.ReconnectNumber,
 		})
-		client.ReconnectHandler = majsoul.ReConn
 		err = client.Connect(majsoul.Ctx)
 		if err != nil {
 			continue
@@ -202,12 +195,6 @@ func (majsoul *Majsoul) tryNew() (err error) {
 		return nil
 	}
 	return ErrorNoServerAvailable
-}
-
-func (majsoul *Majsoul) ReConn() {
-	//majsoul.LobbyClient.Oauth2Check()
-	//TODO If you are logged in
-	//什么时候写啊啊啊啊啊啊
 }
 
 func (majsoul *Majsoul) init() (err error) {
@@ -480,9 +467,13 @@ func hashPassword(data string) string {
 
 // message.LobbyClient
 
+func (majsoul *Majsoul) OnReconnect(callbreak func()) {
+	majsoul.LobbyConn.ReconnectHandler = callbreak
+}
+
 func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*message.ResLogin, error) {
 	var t uint32
-	if strings.Index(account, "@") == -1 {
+	if !strings.Contains(account, "@") {
 		t = 1
 	}
 	loginRes, err := majsoul.LobbyClient.Login(ctx, &message.ReqLogin{
@@ -519,7 +510,6 @@ func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*m
 	}
 	if loginRes.Error == nil {
 		majsoul.Account = loginRes.Account
-		majsoul.State.Login = true
 	}
 	return loginRes, nil
 }

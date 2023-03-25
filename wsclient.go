@@ -47,7 +47,6 @@ type Reply struct {
 	out      proto.Message
 	wait     chan struct{}
 	msgIndex uint32
-	timeOut  bool
 }
 
 func newWsClient(config *wsConfig) *wsClient {
