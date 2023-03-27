@@ -4,7 +4,7 @@
 
 使用grpc生成了向majsoul服务器请求的通信协议，但是对于majsoul服务器的消息下发使用了更加原始的处理方式。
 
-> current liqi.proto version v0.10.194.w
+> current liqi.proto version v0.10.217.w
 
 ### 安装
 

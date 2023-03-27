@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/constellation39/majsoul/logger"
@@ -80,20 +79,53 @@ type Implement interface {
 }
 
 type Config struct {
-	ServerAddressList []*ServerAddress
-	ServerProxy       string
-	GatewayProxy      string
-	GameProxy         string
-	Reconnect         bool
-	ReconnectInterval time.Duration
-	ReconnectNumber   int
+	ServerAddressList []*ServerAddress // 服务器的可选列表，可以为空，为空时会自动获取
+	ServerProxy       string           // 代理服务器地址(https)请求时，可以为空，为空时不使用代理
+	GatewayProxy      string           // 代理网关服务器地址(wss)请求时，可以为空，为空时不使用代理
+	GameProxy         string           // 代理游戏服务器地址(wss)请求时，可以为空，为空时不使用代理
+	ReconnectInterval time.Duration    // 重连间隔时间
+	ReconnectNumber   int              // 重连次数，当重连次数达到该值时, ws 连接不再尝试重连
+}
+
+type ConfigOption func(*Config)
+
+func WithServerAddressList(serverAddressList []*ServerAddress) ConfigOption {
+	return func(config *Config) {
+		if len(serverAddressList) == 0 {
+			logger.Error("serverAddressList is empty.")
+			return
+		}
+		config.ServerAddressList = serverAddressList
+	}
+}
+
+func WithServerProxy(proxyAddress string) ConfigOption {
+	return func(config *Config) {
+		config.ServerProxy = proxyAddress
+	}
+}
+
+func WithGatewayProxy(proxyAddress string) ConfigOption {
+	return func(config *Config) {
+		config.GatewayProxy = proxyAddress
+	}
+}
+
+func WithGameProxy(proxyAddress string) ConfigOption {
+	return func(config *Config) {
+		config.GameProxy = proxyAddress
+	}
+}
+
+func WithReconnect(number int, interval time.Duration) ConfigOption {
+	return func(config *Config) {
+		config.ReconnectNumber = number
+		config.ReconnectInterval = interval
+	}
 }
 
 // Majsoul majsoul wsClient
 type Majsoul struct {
-	Ctx    context.Context
-	cancel context.CancelFunc
-
 	message.LobbyClient           // message.LobbyClient 更多时候在大厅时调用的是该接口
 	LobbyConn           *wsClient // lobbyConn 是 message.LobbyClient 使用的连接
 
@@ -110,23 +142,28 @@ type Majsoul struct {
 	Config   *Config
 	Account  *message.Account     // 该字段应在登录成功后访问
 	GameInfo *message.ResAuthGame // 该字段应在进入游戏桌面后访问
-
-	once sync.Once
 }
 
-func New(ctx context.Context, config *Config) (majsoul *Majsoul, err error) {
+// New 初始化 majsoul
+// ctx context.Context
+// config *Config 这个入参可以为空，为空时会使用默认值，这个类型每一个字段都可以为空
+func New(ctx context.Context, configOptions ...ConfigOption) (majsoul *Majsoul, err error) {
+	config := &Config{}
+
+	for _, configOption := range configOptions {
+		configOption(config)
+	}
+
 	majsoul = &Majsoul{
 		Config: config,
 		UUID:   uuid(),
 	}
 
-	majsoul.Ctx, majsoul.cancel = context.WithCancel(ctx)
-
 	if len(config.ServerAddressList) == 0 {
 		config.ServerAddressList = ServerAddressList
 	}
 
-	err = majsoul.tryNew()
+	err = majsoul.tryNew(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -136,22 +173,16 @@ func New(ctx context.Context, config *Config) (majsoul *Majsoul, err error) {
 		return nil, err
 	}
 
-	go majsoul.heatbeat()
-	go majsoul.receiveConn()
+	go majsoul.heatbeat(ctx)
+	go majsoul.receiveConn(ctx)
 	return majsoul, nil
 }
 
-func (majsoul *Majsoul) Close() {
-	majsoul.once.Do(func() {
-		majsoul.cancel()
-	})
-}
-
-func (majsoul *Majsoul) tryNew() (err error) {
+func (majsoul *Majsoul) tryNew(ctx context.Context) (err error) {
 	for _, serverAddress := range majsoul.Config.ServerAddressList {
 		select {
-		case <-majsoul.Ctx.Done():
-			return ErrorShutdownSignal
+		case <-ctx.Done():
+			return ctx.Err()
 		default:
 		}
 
@@ -183,7 +214,7 @@ func (majsoul *Majsoul) tryNew() (err error) {
 			ReconnectInterval: majsoul.Config.ReconnectInterval,
 			ReconnectNumber:   majsoul.Config.ReconnectNumber,
 		})
-		err = client.Connect(majsoul.Ctx)
+		err = client.Connect(ctx)
 		if err != nil {
 			continue
 		}
@@ -230,18 +261,20 @@ func (majsoul *Majsoul) version() (*Version, error) {
 	return version, nil
 }
 
-func (majsoul *Majsoul) heatbeat() {
-	t3 := time.NewTicker(time.Second * 3)
+func (majsoul *Majsoul) heatbeat(ctx context.Context) {
+	// Gateway 心跳包 5 秒一次
+	t5 := time.NewTicker(time.Second * 5)
+	// Game 心跳包 2 秒一次
 	t2 := time.NewTicker(time.Second * 2)
 	for {
 		select {
-		case <-majsoul.Ctx.Done():
+		case <-ctx.Done():
 			return
-		case <-t3.C:
+		case <-t5.C:
 			if majsoul.FastTestConn != nil {
 				continue
 			}
-			_, err := majsoul.Heatbeat(majsoul.Ctx, &message.ReqHeatBeat{})
+			_, err := majsoul.Heatbeat(ctx, &message.ReqHeatBeat{})
 			if err != nil {
 				logger.Error("Majsoul.heatbeat error:", zap.Error(err))
 				return
@@ -250,7 +283,7 @@ func (majsoul *Majsoul) heatbeat() {
 			if majsoul.FastTestConn == nil {
 				continue
 			}
-			_, err := majsoul.CheckNetworkDelay(majsoul.Ctx, &message.ReqCommon{})
+			_, err := majsoul.CheckNetworkDelay(ctx, &message.ReqCommon{})
 			if err != nil {
 				logger.Error("Majsoul.checkNetworkDelay error:", zap.Error(err))
 				return
@@ -259,186 +292,195 @@ func (majsoul *Majsoul) heatbeat() {
 	}
 }
 
-func (majsoul *Majsoul) receiveConn() {
-	for data := range majsoul.LobbyConn.Receive() {
-		majsoul.handleNotify(data)
+func (majsoul *Majsoul) receiveConn(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case data := <-majsoul.LobbyConn.Receive():
+			majsoul.handleNotify(ctx, data)
+		}
 	}
 }
 
-func (majsoul *Majsoul) receiveGame() {
-	for data := range majsoul.FastTestConn.Receive() {
-		majsoul.handleNotify(data)
+func (majsoul *Majsoul) receiveGame(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case data := <-majsoul.FastTestConn.Receive():
+			majsoul.handleNotify(ctx, data)
+		}
 	}
 }
 
-func (majsoul *Majsoul) handleNotify(data proto.Message) {
+func (majsoul *Majsoul) handleNotify(ctx context.Context, data proto.Message) {
 	if majsoul.Implement == nil {
-		logger.Error("majsoul.Implement is null")
-		return
+		logger.Panic("majsoul.Implement is null")
 	}
 	switch notify := data.(type) {
 	case *message.NotifyCaptcha:
-		majsoul.Implement.NotifyCaptcha(notify)
+		majsoul.Implement.NotifyCaptcha(ctx, notify)
 	case *message.NotifyRoomGameStart:
-		majsoul.Implement.NotifyRoomGameStart(notify)
+		majsoul.Implement.NotifyRoomGameStart(ctx, notify)
 	case *message.NotifyMatchGameStart:
-		majsoul.Implement.NotifyMatchGameStart(notify)
+		majsoul.Implement.NotifyMatchGameStart(ctx, notify)
 	case *message.NotifyRoomPlayerReady:
-		majsoul.Implement.NotifyRoomPlayerReady(notify)
+		majsoul.Implement.NotifyRoomPlayerReady(ctx, notify)
 	case *message.NotifyRoomPlayerDressing:
-		majsoul.Implement.NotifyRoomPlayerDressing(notify)
+		majsoul.Implement.NotifyRoomPlayerDressing(ctx, notify)
 	case *message.NotifyRoomPlayerUpdate:
-		majsoul.Implement.NotifyRoomPlayerUpdate(notify)
+		majsoul.Implement.NotifyRoomPlayerUpdate(ctx, notify)
 	case *message.NotifyRoomKickOut:
-		majsoul.Implement.NotifyRoomKickOut(notify)
+		majsoul.Implement.NotifyRoomKickOut(ctx, notify)
 	case *message.NotifyFriendStateChange:
-		majsoul.Implement.NotifyFriendStateChange(notify)
+		majsoul.Implement.NotifyFriendStateChange(ctx, notify)
 	case *message.NotifyFriendViewChange:
-		majsoul.Implement.NotifyFriendViewChange(notify)
+		majsoul.Implement.NotifyFriendViewChange(ctx, notify)
 	case *message.NotifyFriendChange:
-		majsoul.Implement.NotifyFriendChange(notify)
+		majsoul.Implement.NotifyFriendChange(ctx, notify)
 	case *message.NotifyNewFriendApply:
-		majsoul.Implement.NotifyNewFriendApply(notify)
+		majsoul.Implement.NotifyNewFriendApply(ctx, notify)
 	case *message.NotifyClientMessage:
-		majsoul.Implement.NotifyClientMessage(notify)
+		majsoul.Implement.NotifyClientMessage(ctx, notify)
 	case *message.NotifyAccountUpdate:
-		majsoul.Implement.NotifyAccountUpdate(notify)
+		majsoul.Implement.NotifyAccountUpdate(ctx, notify)
 	case *message.NotifyAnotherLogin:
-		majsoul.Implement.NotifyAnotherLogin(notify)
+		majsoul.Implement.NotifyAnotherLogin(ctx, notify)
 	case *message.NotifyAccountLogout:
-		majsoul.Implement.NotifyAccountLogout(notify)
+		majsoul.Implement.NotifyAccountLogout(ctx, notify)
 	case *message.NotifyAnnouncementUpdate:
-		majsoul.Implement.NotifyAnnouncementUpdate(notify)
+		majsoul.Implement.NotifyAnnouncementUpdate(ctx, notify)
 	case *message.NotifyNewMail:
-		majsoul.Implement.NotifyNewMail(notify)
+		majsoul.Implement.NotifyNewMail(ctx, notify)
 	case *message.NotifyDeleteMail:
-		majsoul.Implement.NotifyDeleteMail(notify)
+		majsoul.Implement.NotifyDeleteMail(ctx, notify)
 	case *message.NotifyReviveCoinUpdate:
-		majsoul.Implement.NotifyReviveCoinUpdate(notify)
+		majsoul.Implement.NotifyReviveCoinUpdate(ctx, notify)
 	case *message.NotifyDailyTaskUpdate:
-		majsoul.Implement.NotifyDailyTaskUpdate(notify)
+		majsoul.Implement.NotifyDailyTaskUpdate(ctx, notify)
 	case *message.NotifyActivityTaskUpdate:
-		majsoul.Implement.NotifyActivityTaskUpdate(notify)
+		majsoul.Implement.NotifyActivityTaskUpdate(ctx, notify)
 	case *message.NotifyActivityPeriodTaskUpdate:
-		majsoul.Implement.NotifyActivityPeriodTaskUpdate(notify)
+		majsoul.Implement.NotifyActivityPeriodTaskUpdate(ctx, notify)
 	case *message.NotifyAccountRandomTaskUpdate:
-		majsoul.Implement.NotifyAccountRandomTaskUpdate(notify)
+		majsoul.Implement.NotifyAccountRandomTaskUpdate(ctx, notify)
 	case *message.NotifyActivitySegmentTaskUpdate:
-		majsoul.Implement.NotifyActivitySegmentTaskUpdate(notify)
+		majsoul.Implement.NotifyActivitySegmentTaskUpdate(ctx, notify)
 	case *message.NotifyActivityUpdate:
-		majsoul.Implement.NotifyActivityUpdate(notify)
+		majsoul.Implement.NotifyActivityUpdate(ctx, notify)
 	case *message.NotifyAccountChallengeTaskUpdate:
-		majsoul.Implement.NotifyAccountChallengeTaskUpdate(notify)
+		majsoul.Implement.NotifyAccountChallengeTaskUpdate(ctx, notify)
 	case *message.NotifyNewComment:
-		majsoul.Implement.NotifyNewComment(notify)
+		majsoul.Implement.NotifyNewComment(ctx, notify)
 	case *message.NotifyRollingNotice:
-		majsoul.Implement.NotifyRollingNotice(notify)
+		majsoul.Implement.NotifyRollingNotice(ctx, notify)
 	case *message.NotifyGiftSendRefresh:
-		majsoul.Implement.NotifyGiftSendRefresh(notify)
+		majsoul.Implement.NotifyGiftSendRefresh(ctx, notify)
 	case *message.NotifyShopUpdate:
-		majsoul.Implement.NotifyShopUpdate(notify)
+		majsoul.Implement.NotifyShopUpdate(ctx, notify)
 	case *message.NotifyVipLevelChange:
-		majsoul.Implement.NotifyVipLevelChange(notify)
+		majsoul.Implement.NotifyVipLevelChange(ctx, notify)
 	case *message.NotifyServerSetting:
-		majsoul.Implement.NotifyServerSetting(notify)
+		majsoul.Implement.NotifyServerSetting(ctx, notify)
 	case *message.NotifyPayResult:
-		majsoul.Implement.NotifyPayResult(notify)
+		majsoul.Implement.NotifyPayResult(ctx, notify)
 	case *message.NotifyCustomContestAccountMsg:
-		majsoul.Implement.NotifyCustomContestAccountMsg(notify)
+		majsoul.Implement.NotifyCustomContestAccountMsg(ctx, notify)
 	case *message.NotifyCustomContestSystemMsg:
-		majsoul.Implement.NotifyCustomContestSystemMsg(notify)
+		majsoul.Implement.NotifyCustomContestSystemMsg(ctx, notify)
 	case *message.NotifyMatchTimeout:
-		majsoul.Implement.NotifyMatchTimeout(notify)
+		majsoul.Implement.NotifyMatchTimeout(ctx, notify)
 	case *message.NotifyCustomContestState:
-		majsoul.Implement.NotifyCustomContestState(notify)
+		majsoul.Implement.NotifyCustomContestState(ctx, notify)
 	case *message.NotifyActivityChange:
-		majsoul.Implement.NotifyActivityChange(notify)
+		majsoul.Implement.NotifyActivityChange(ctx, notify)
 	case *message.NotifyAFKResult:
-		majsoul.Implement.NotifyAFKResult(notify)
+		majsoul.Implement.NotifyAFKResult(ctx, notify)
 	case *message.NotifyGameFinishRewardV2:
-		majsoul.Implement.NotifyGameFinishRewardV2(notify)
+		majsoul.Implement.NotifyGameFinishRewardV2(ctx, notify)
 	case *message.NotifyActivityRewardV2:
-		majsoul.Implement.NotifyActivityRewardV2(notify)
+		majsoul.Implement.NotifyActivityRewardV2(ctx, notify)
 	case *message.NotifyActivityPointV2:
-		majsoul.Implement.NotifyActivityPointV2(notify)
+		majsoul.Implement.NotifyActivityPointV2(ctx, notify)
 	case *message.NotifyLeaderboardPointV2:
-		majsoul.Implement.NotifyLeaderboardPointV2(notify)
+		majsoul.Implement.NotifyLeaderboardPointV2(ctx, notify)
 	case *message.NotifyNewGame:
-		majsoul.Implement.NotifyNewGame(notify)
+		majsoul.Implement.NotifyNewGame(ctx, notify)
 	case *message.NotifyPlayerLoadGameReady:
-		majsoul.Implement.NotifyPlayerLoadGameReady(notify)
+		majsoul.Implement.NotifyPlayerLoadGameReady(ctx, notify)
 	case *message.NotifyGameBroadcast:
-		majsoul.Implement.NotifyGameBroadcast(notify)
+		majsoul.Implement.NotifyGameBroadcast(ctx, notify)
 	case *message.NotifyGameEndResult:
-		majsoul.Implement.NotifyGameEndResult(notify)
+		majsoul.Implement.NotifyGameEndResult(ctx, notify)
 	case *message.NotifyGameTerminate:
-		majsoul.Implement.NotifyGameTerminate(notify)
+		majsoul.Implement.NotifyGameTerminate(ctx, notify)
 	case *message.NotifyPlayerConnectionState:
-		majsoul.Implement.NotifyPlayerConnectionState(notify)
+		majsoul.Implement.NotifyPlayerConnectionState(ctx, notify)
 	case *message.NotifyAccountLevelChange:
-		majsoul.Implement.NotifyAccountLevelChange(notify)
+		majsoul.Implement.NotifyAccountLevelChange(ctx, notify)
 	case *message.NotifyGameFinishReward:
-		majsoul.Implement.NotifyGameFinishReward(notify)
+		majsoul.Implement.NotifyGameFinishReward(ctx, notify)
 	case *message.NotifyActivityReward:
-		majsoul.Implement.NotifyActivityReward(notify)
+		majsoul.Implement.NotifyActivityReward(ctx, notify)
 	case *message.NotifyActivityPoint:
-		majsoul.Implement.NotifyActivityPoint(notify)
+		majsoul.Implement.NotifyActivityPoint(ctx, notify)
 	case *message.NotifyLeaderboardPoint:
-		majsoul.Implement.NotifyLeaderboardPoint(notify)
+		majsoul.Implement.NotifyLeaderboardPoint(ctx, notify)
 	case *message.NotifyGamePause:
-		majsoul.Implement.NotifyGamePause(notify)
+		majsoul.Implement.NotifyGamePause(ctx, notify)
 	case *message.NotifyEndGameVote:
-		majsoul.Implement.NotifyEndGameVote(notify)
+		majsoul.Implement.NotifyEndGameVote(ctx, notify)
 	case *message.NotifyObserveData:
-		majsoul.Implement.NotifyObserveData(notify)
+		majsoul.Implement.NotifyObserveData(ctx, notify)
 	case *message.NotifyRoomPlayerReady_AccountReadyState:
-		majsoul.Implement.NotifyRoomPlayerReady_AccountReadyState(notify)
+		majsoul.Implement.NotifyRoomPlayerReady_AccountReadyState(ctx, notify)
 	case *message.NotifyRoomPlayerDressing_AccountDressingState:
-		majsoul.Implement.NotifyRoomPlayerDressing_AccountDressingState(notify)
+		majsoul.Implement.NotifyRoomPlayerDressing_AccountDressingState(ctx, notify)
 	case *message.NotifyAnnouncementUpdate_AnnouncementUpdate:
-		majsoul.Implement.NotifyAnnouncementUpdate_AnnouncementUpdate(notify)
+		majsoul.Implement.NotifyAnnouncementUpdate_AnnouncementUpdate(ctx, notify)
 	case *message.NotifyActivityUpdate_FeedActivityData:
-		majsoul.Implement.NotifyActivityUpdate_FeedActivityData(notify)
+		majsoul.Implement.NotifyActivityUpdate_FeedActivityData(ctx, notify)
 	case *message.NotifyActivityUpdate_FeedActivityData_CountWithTimeData:
-		majsoul.Implement.NotifyActivityUpdate_FeedActivityData_CountWithTimeData(notify)
+		majsoul.Implement.NotifyActivityUpdate_FeedActivityData_CountWithTimeData(ctx, notify)
 	case *message.NotifyActivityUpdate_FeedActivityData_GiftBoxData:
-		majsoul.Implement.NotifyActivityUpdate_FeedActivityData_GiftBoxData(notify)
+		majsoul.Implement.NotifyActivityUpdate_FeedActivityData_GiftBoxData(ctx, notify)
 	case *message.NotifyPayResult_ResourceModify:
-		majsoul.Implement.NotifyPayResult_ResourceModify(notify)
+		majsoul.Implement.NotifyPayResult_ResourceModify(ctx, notify)
 	case *message.NotifyGameFinishRewardV2_LevelChange:
-		majsoul.Implement.NotifyGameFinishRewardV2_LevelChange(notify)
+		majsoul.Implement.NotifyGameFinishRewardV2_LevelChange(ctx, notify)
 	case *message.NotifyGameFinishRewardV2_MatchChest:
-		majsoul.Implement.NotifyGameFinishRewardV2_MatchChest(notify)
+		majsoul.Implement.NotifyGameFinishRewardV2_MatchChest(ctx, notify)
 	case *message.NotifyGameFinishRewardV2_MainCharacter:
-		majsoul.Implement.NotifyGameFinishRewardV2_MainCharacter(notify)
+		majsoul.Implement.NotifyGameFinishRewardV2_MainCharacter(ctx, notify)
 	case *message.NotifyGameFinishRewardV2_CharacterGift:
-		majsoul.Implement.NotifyGameFinishRewardV2_CharacterGift(notify)
+		majsoul.Implement.NotifyGameFinishRewardV2_CharacterGift(ctx, notify)
 	case *message.NotifyActivityRewardV2_ActivityReward:
-		majsoul.Implement.NotifyActivityRewardV2_ActivityReward(notify)
+		majsoul.Implement.NotifyActivityRewardV2_ActivityReward(ctx, notify)
 	case *message.NotifyActivityPointV2_ActivityPoint:
-		majsoul.Implement.NotifyActivityPointV2_ActivityPoint(notify)
+		majsoul.Implement.NotifyActivityPointV2_ActivityPoint(ctx, notify)
 	case *message.NotifyLeaderboardPointV2_LeaderboardPoint:
-		majsoul.Implement.NotifyLeaderboardPointV2_LeaderboardPoint(notify)
+		majsoul.Implement.NotifyLeaderboardPointV2_LeaderboardPoint(ctx, notify)
 	case *message.NotifyGameFinishReward_LevelChange:
-		majsoul.Implement.NotifyGameFinishReward_LevelChange(notify)
+		majsoul.Implement.NotifyGameFinishReward_LevelChange(ctx, notify)
 	case *message.NotifyGameFinishReward_MatchChest:
-		majsoul.Implement.NotifyGameFinishReward_MatchChest(notify)
+		majsoul.Implement.NotifyGameFinishReward_MatchChest(ctx, notify)
 	case *message.NotifyGameFinishReward_MainCharacter:
-		majsoul.Implement.NotifyGameFinishReward_MainCharacter(notify)
+		majsoul.Implement.NotifyGameFinishReward_MainCharacter(ctx, notify)
 	case *message.NotifyGameFinishReward_CharacterGift:
-		majsoul.Implement.NotifyGameFinishReward_CharacterGift(notify)
+		majsoul.Implement.NotifyGameFinishReward_CharacterGift(ctx, notify)
 	case *message.NotifyActivityReward_ActivityReward:
-		majsoul.Implement.NotifyActivityReward_ActivityReward(notify)
+		majsoul.Implement.NotifyActivityReward_ActivityReward(ctx, notify)
 	case *message.NotifyActivityPoint_ActivityPoint:
-		majsoul.Implement.NotifyActivityPoint_ActivityPoint(notify)
+		majsoul.Implement.NotifyActivityPoint_ActivityPoint(ctx, notify)
 	case *message.NotifyLeaderboardPoint_LeaderboardPoint:
-		majsoul.Implement.NotifyLeaderboardPoint_LeaderboardPoint(notify)
+		majsoul.Implement.NotifyLeaderboardPoint_LeaderboardPoint(ctx, notify)
 	case *message.NotifyEndGameVote_VoteResult:
-		majsoul.Implement.NotifyEndGameVote_VoteResult(notify)
+		majsoul.Implement.NotifyEndGameVote_VoteResult(ctx, notify)
 	case *message.PlayerLeaving:
-		majsoul.Implement.PlayerLeaving(notify)
+		majsoul.Implement.PlayerLeaving(ctx, notify)
 	case *message.ActionPrototype:
-		majsoul.Implement.ActionPrototype(notify)
+		majsoul.Implement.ActionPrototype(ctx, notify)
 	default:
 		logger.Info("unknown notify type", zap.Reflect("notify", notify))
 	}
@@ -467,7 +509,7 @@ func hashPassword(data string) string {
 
 // message.LobbyClient
 
-func (majsoul *Majsoul) OnReconnect(callbreak func()) {
+func (majsoul *Majsoul) OnReconnect(callbreak func(ctx context.Context)) {
 	majsoul.LobbyConn.ReconnectHandler = callbreak
 }
 
