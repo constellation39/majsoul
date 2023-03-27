@@ -117,7 +117,8 @@ func main() {
 
 	resMailInfo, err := client.FetchMailInfo(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchMailInfo.", zap.Error(err))
+		logger.Error("majsoul FetchMailInfo error.", zap.Error(err))
 		return
 	}
+	logger.Info("majsoul FetchMailInfo.", zap.Reflect("resMailInfo", resMailInfo))
 }
