@@ -89,7 +89,6 @@ func (client *wsClient) Close() {
 
 func (client *wsClient) reConnect(ctx context.Context) {
 	for {
-
 		client.curReconnectNumber++
 		if client.curReconnectNumber >= client.ReconnectNumber {
 			break

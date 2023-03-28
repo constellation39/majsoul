@@ -604,7 +604,7 @@ func (majsoul *Majsoul) handleNotify(ctx context.Context, data proto.Message) {
 		majsoul.PlayerLeaving(ctx, notify)
 		majsoul.implement.PlayerLeaving(ctx, notify)
 	case *message.ActionPrototype:
-		majsoul.ActionPrototype(ctx, notify)
+		// majsoul.ActionPrototype(ctx, notify)
 		majsoul.implement.ActionPrototype(ctx, notify)
 	default:
 		logger.Info("unknown notify type", zap.Reflect("notify", notify))
@@ -639,6 +639,7 @@ func (majsoul *Majsoul) OnReconnect(callbreak func(ctx context.Context)) {
 	majsoul.LobbyConn.ReconnectHandler = callbreak
 }
 
+// Login 登录/重连，这是一个额外实现，并不属于 proto 或者 GRPC 的定义中
 func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*message.ResLogin, error) {
 	if len(account) == 0 {
 		return nil, fmt.Errorf("account is null.")
@@ -650,7 +651,7 @@ func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*m
 	if !strings.Contains(account, "@") {
 		t = 1
 	}
-	loginRes, err := majsoul.LobbyClient.Login(ctx, &message.ReqLogin{
+	resLogin, err := majsoul.LobbyClient.Login(ctx, &message.ReqLogin{
 		Account:   account,
 		Password:  hashPassword(password),
 		Reconnect: false,
@@ -682,10 +683,47 @@ func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*m
 	if err != nil {
 		return nil, err
 	}
-	if loginRes.Error == nil {
-		majsoul.Account = loginRes.Account
+	if resLogin.Error == nil {
+		majsoul.Account = resLogin.Account
+		majsoul.OnReconnect(func(ctx context.Context) {
+			accessToken := resLogin.AccessToken
+			resOauth2Check, err := majsoul.Oauth2Check(ctx, &message.ReqOauth2Check{AccessToken: accessToken})
+			if err != nil {
+				logger.Error("majsoul Oauth2Check error.", zap.Error(err))
+			}
+			logger.Error("majsoul Oauth2Check.", zap.Reflect("resOauth2Check", resOauth2Check))
+
+			resLogin, err := majsoul.Oauth2Login(ctx, &message.ReqOauth2Login{
+				AccessToken: accessToken,
+				Device: &message.ClientDeviceInfo{
+					Platform:       "pc",
+					Hardware:       "pc",
+					Os:             "windows",
+					OsVersion:      "win10",
+					IsBrowser:      true,
+					Software:       "Chrome",
+					SalePlatform:   "web",
+					HardwareVendor: "",
+					ModelNumber:    "",
+					ScreenWidth:    uint32(rand.Int31n(400) + 914),
+					ScreenHeight:   uint32(rand.Int31n(200) + 1316),
+				},
+				Reconnect: true,
+				RandomKey: majsoul.UUID,
+				ClientVersion: &message.ClientVersionInfo{
+					Resource: majsoul.Version.Version,
+					Package:  "",
+				},
+				GenAccessToken:    false,
+				CurrencyPlatforms: []uint32{2},
+			})
+			if err != nil {
+				logger.Error("majsoul Oauth2Login error.", zap.Error(err))
+			}
+			logger.Error("majsoul Oauth2Login.", zap.Reflect("resLogin", resLogin))
+		})
 	}
-	return loginRes, nil
+	return resLogin, nil
 }
 
 // message.FastTestClient
