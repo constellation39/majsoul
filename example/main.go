@@ -24,7 +24,7 @@ type Majsoul struct {
 
 func NewMajSoul(ctx context.Context) (*Majsoul, error) {
 	// 初始化一个客户端
-	subClient, err := majsoul.New(ctx)
+	subClient, err := majsoul.New(ctx, majsoul.WithReconnect(3, time.Second*3))
 	if err != nil {
 		return nil, err
 	}
@@ -486,6 +486,7 @@ func main() {
 	}
 	if resLogin.Error != nil && resLogin.Error.Code != 0 {
 		logger.Error("majsoul login error.", zap.Uint32("Code", resLogin.Error.Code))
+		return
 	}
 	logger.Info("majsoul login.", zap.Reflect("resLogin", resLogin))
 
