@@ -17,12 +17,25 @@ func (majsoul *Majsoul) NotifyCaptcha(ctx context.Context, notify *message.Notif
 
 func (majsoul *Majsoul) NotifyRoomGameStart(ctx context.Context, notify *message.NotifyRoomGameStart) {
 	logger.Debug("NotifyRoomGameStart", zap.Reflect("notify", notify))
-
-	err := majsoul.ConnGame(ctx, notify.ConnectToken, notify.GameUuid)
+	majsoul.ConnGame(ctx)
+	var err error
+	majsoul.GameInfo, err = majsoul.AuthGame(ctx, &message.ReqAuthGame{
+		AccountId: majsoul.Account.AccountId,
+		Token:     notify.ConnectToken,
+		GameUuid:  notify.GameUuid,
+	})
 	if err != nil {
-		logger.Error("NotifyRoomGameStart ConnGame error: ", zap.Error(err))
+		logger.Error("NotifyRoomGameStart AuthGame error: ", zap.Error(err))
 		return
 	}
+
+	_, err = majsoul.EnterGame(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("NotifyRoomGameStart EnterGame error:", zap.Error(err))
+		return
+	}
+
+	return
 }
 
 func (majsoul *Majsoul) NotifyMatchGameStart(ctx context.Context, notify *message.NotifyMatchGameStart) {
@@ -351,83 +364,86 @@ func (majsoul *Majsoul) PlayerLeaving(ctx context.Context, notify *message.Playe
 
 var keys = []int{0x84, 0x5e, 0x4e, 0x42, 0x39, 0xa2, 0x1f, 0x60, 0x1c}
 
-func decode(data []byte) {
-	for i := 0; i < len(data); i++ {
-		u := (23 ^ len(data)) + 5*i + keys[i%len(keys)]&255
-		data[i] ^= byte(u)
+func decode(data []byte) []byte {
+	temp := make([]byte, len(data))
+	copy(temp, data)
+	for i := 0; i < len(temp); i++ {
+		u := (23 ^ len(temp)) + 5*i + keys[i%len(keys)]&255
+		temp[i] ^= byte(u)
 	}
+	return temp
 }
 
 func (majsoul *Majsoul) ActionPrototype(ctx context.Context, notify *message.ActionPrototype) {
-	logger.Debug("ActionPrototype", zap.Reflect("notify", notify))
-	data := message.GetActionType(notify.Name)
-	decode(notify.Data)
-	err := proto.Unmarshal(notify.Data, data)
+	// logger.Debug("ActionPrototype", zap.Reflect("notify", notify))
+	actionMessage := message.GetActionType(notify.Name)
+	deData := decode(notify.Data)
+	err := proto.Unmarshal(deData, actionMessage)
 	if err != nil {
-		logger.Error("ActionPrototype Unmarshal notify data failed: ", zap.Error(err), zap.Reflect("notify", notify))
+		logger.Error("ActionPrototype Unmarshal notify data failed: ", zap.Error(err), zap.Reflect("notify", notify), zap.Binary("data", notify.Data), zap.Binary("deCode", deData))
 		return
 	}
 	switch notify.Name {
 	case "ActionMJStart":
-		majsoul.ActionMJStart(ctx, data.(*message.ActionMJStart))
-		majsoul.Implement.ActionMJStart(ctx, data.(*message.ActionMJStart))
+		majsoul.ActionMJStart(ctx, actionMessage.(*message.ActionMJStart))
+		majsoul.Implement.ActionMJStart(ctx, actionMessage.(*message.ActionMJStart))
 	case "ActionNewCard":
-		majsoul.ActionNewCard(ctx, data.(*message.ActionNewCard))
-		majsoul.Implement.ActionNewCard(ctx, data.(*message.ActionNewCard))
+		majsoul.ActionNewCard(ctx, actionMessage.(*message.ActionNewCard))
+		majsoul.Implement.ActionNewCard(ctx, actionMessage.(*message.ActionNewCard))
 	case "ActionNewRound":
-		majsoul.ActionNewRound(ctx, data.(*message.ActionNewRound))
-		majsoul.Implement.ActionNewRound(ctx, data.(*message.ActionNewRound))
+		majsoul.ActionNewRound(ctx, actionMessage.(*message.ActionNewRound))
+		majsoul.Implement.ActionNewRound(ctx, actionMessage.(*message.ActionNewRound))
 	case "ActionSelectGap":
-		majsoul.ActionSelectGap(ctx, data.(*message.ActionSelectGap))
-		majsoul.Implement.ActionSelectGap(ctx, data.(*message.ActionSelectGap))
+		majsoul.ActionSelectGap(ctx, actionMessage.(*message.ActionSelectGap))
+		majsoul.Implement.ActionSelectGap(ctx, actionMessage.(*message.ActionSelectGap))
 	case "ActionChangeTile":
-		majsoul.ActionChangeTile(ctx, data.(*message.ActionChangeTile))
-		majsoul.Implement.ActionChangeTile(ctx, data.(*message.ActionChangeTile))
+		majsoul.ActionChangeTile(ctx, actionMessage.(*message.ActionChangeTile))
+		majsoul.Implement.ActionChangeTile(ctx, actionMessage.(*message.ActionChangeTile))
 	case "ActionRevealTile":
-		majsoul.ActionRevealTile(ctx, data.(*message.ActionRevealTile))
-		majsoul.Implement.ActionRevealTile(ctx, data.(*message.ActionRevealTile))
+		majsoul.ActionRevealTile(ctx, actionMessage.(*message.ActionRevealTile))
+		majsoul.Implement.ActionRevealTile(ctx, actionMessage.(*message.ActionRevealTile))
 	case "ActionUnveilTile":
-		majsoul.ActionUnveilTile(ctx, data.(*message.ActionUnveilTile))
-		majsoul.Implement.ActionUnveilTile(ctx, data.(*message.ActionUnveilTile))
+		majsoul.ActionUnveilTile(ctx, actionMessage.(*message.ActionUnveilTile))
+		majsoul.Implement.ActionUnveilTile(ctx, actionMessage.(*message.ActionUnveilTile))
 	case "ActionLockTile":
-		majsoul.ActionLockTile(ctx, data.(*message.ActionLockTile))
-		majsoul.Implement.ActionLockTile(ctx, data.(*message.ActionLockTile))
+		majsoul.ActionLockTile(ctx, actionMessage.(*message.ActionLockTile))
+		majsoul.Implement.ActionLockTile(ctx, actionMessage.(*message.ActionLockTile))
 	case "ActionDiscardTile":
-		majsoul.ActionDiscardTile(ctx, data.(*message.ActionDiscardTile))
-		majsoul.Implement.ActionDiscardTile(ctx, data.(*message.ActionDiscardTile))
+		majsoul.ActionDiscardTile(ctx, actionMessage.(*message.ActionDiscardTile))
+		majsoul.Implement.ActionDiscardTile(ctx, actionMessage.(*message.ActionDiscardTile))
 	case "ActionDealTile":
-		majsoul.ActionDealTile(ctx, data.(*message.ActionDealTile))
-		majsoul.Implement.ActionDealTile(ctx, data.(*message.ActionDealTile))
+		majsoul.ActionDealTile(ctx, actionMessage.(*message.ActionDealTile))
+		majsoul.Implement.ActionDealTile(ctx, actionMessage.(*message.ActionDealTile))
 	case "ActionChiPengGang":
-		majsoul.ActionChiPengGang(ctx, data.(*message.ActionChiPengGang))
-		majsoul.Implement.ActionChiPengGang(ctx, data.(*message.ActionChiPengGang))
+		majsoul.ActionChiPengGang(ctx, actionMessage.(*message.ActionChiPengGang))
+		majsoul.Implement.ActionChiPengGang(ctx, actionMessage.(*message.ActionChiPengGang))
 	case "ActionGangResult":
-		majsoul.ActionGangResult(ctx, data.(*message.ActionGangResult))
-		majsoul.Implement.ActionGangResult(ctx, data.(*message.ActionGangResult))
+		majsoul.ActionGangResult(ctx, actionMessage.(*message.ActionGangResult))
+		majsoul.Implement.ActionGangResult(ctx, actionMessage.(*message.ActionGangResult))
 	case "ActionGangResultEnd":
-		majsoul.ActionGangResultEnd(ctx, data.(*message.ActionGangResultEnd))
-		majsoul.Implement.ActionGangResultEnd(ctx, data.(*message.ActionGangResultEnd))
+		majsoul.ActionGangResultEnd(ctx, actionMessage.(*message.ActionGangResultEnd))
+		majsoul.Implement.ActionGangResultEnd(ctx, actionMessage.(*message.ActionGangResultEnd))
 	case "ActionAnGangAddGang":
-		majsoul.ActionAnGangAddGang(ctx, data.(*message.ActionAnGangAddGang))
-		majsoul.Implement.ActionAnGangAddGang(ctx, data.(*message.ActionAnGangAddGang))
+		majsoul.ActionAnGangAddGang(ctx, actionMessage.(*message.ActionAnGangAddGang))
+		majsoul.Implement.ActionAnGangAddGang(ctx, actionMessage.(*message.ActionAnGangAddGang))
 	case "ActionBaBei":
-		majsoul.ActionBaBei(ctx, data.(*message.ActionBaBei))
-		majsoul.Implement.ActionBaBei(ctx, data.(*message.ActionBaBei))
+		majsoul.ActionBaBei(ctx, actionMessage.(*message.ActionBaBei))
+		majsoul.Implement.ActionBaBei(ctx, actionMessage.(*message.ActionBaBei))
 	case "ActionHule":
-		majsoul.ActionHule(ctx, data.(*message.ActionHule))
-		majsoul.Implement.ActionHule(ctx, data.(*message.ActionHule))
+		majsoul.ActionHule(ctx, actionMessage.(*message.ActionHule))
+		majsoul.Implement.ActionHule(ctx, actionMessage.(*message.ActionHule))
 	case "ActionHuleXueZhanMid":
-		majsoul.ActionHuleXueZhanMid(ctx, data.(*message.ActionHuleXueZhanMid))
-		majsoul.Implement.ActionHuleXueZhanMid(ctx, data.(*message.ActionHuleXueZhanMid))
+		majsoul.ActionHuleXueZhanMid(ctx, actionMessage.(*message.ActionHuleXueZhanMid))
+		majsoul.Implement.ActionHuleXueZhanMid(ctx, actionMessage.(*message.ActionHuleXueZhanMid))
 	case "ActionHuleXueZhanEnd":
-		majsoul.ActionHuleXueZhanEnd(ctx, data.(*message.ActionHuleXueZhanEnd))
-		majsoul.Implement.ActionHuleXueZhanEnd(ctx, data.(*message.ActionHuleXueZhanEnd))
+		majsoul.ActionHuleXueZhanEnd(ctx, actionMessage.(*message.ActionHuleXueZhanEnd))
+		majsoul.Implement.ActionHuleXueZhanEnd(ctx, actionMessage.(*message.ActionHuleXueZhanEnd))
 	case "ActionLiuJu":
-		majsoul.ActionLiuJu(ctx, data.(*message.ActionLiuJu))
-		majsoul.Implement.ActionLiuJu(ctx, data.(*message.ActionLiuJu))
+		majsoul.ActionLiuJu(ctx, actionMessage.(*message.ActionLiuJu))
+		majsoul.Implement.ActionLiuJu(ctx, actionMessage.(*message.ActionLiuJu))
 	case "ActionNoTile":
-		majsoul.ActionNoTile(ctx, data.(*message.ActionNoTile))
-		majsoul.Implement.ActionNoTile(ctx, data.(*message.ActionNoTile))
+		majsoul.ActionNoTile(ctx, actionMessage.(*message.ActionNoTile))
+		majsoul.Implement.ActionNoTile(ctx, actionMessage.(*message.ActionNoTile))
 	default:
 		logger.Error("unknown notify name: ", zap.String("name", notify.Name))
 	}

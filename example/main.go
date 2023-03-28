@@ -486,14 +486,26 @@ func main() {
 		return
 	}
 
-	// 检查是否在游戏中
+	// 重连支持
 	if resLogin.Account != nil && resLogin.Account.RoomId != 0 {
-		err := client.ConnGame(ctx, resLogin.GameInfo.ConnectToken, resLogin.GameInfo.GameUuid)
+		client.ConnGame(ctx)
+		var err error
+		client.GameInfo, err = client.AuthGame(ctx, &message.ReqAuthGame{
+			AccountId: client.Account.AccountId,
+			Token:     resLogin.GameInfo.ConnectToken,
+			GameUuid:  resLogin.GameInfo.GameUuid,
+		})
 		if err != nil {
-			logger.Error("NotifyRoomGameStart ConnGame error: ", zap.Error(err))
+			logger.Error("ReConn error: ", zap.Error(err))
 			return
 		}
-		client.SyncGame(ctx, &message.ReqSyncGame{})
+
+		resSyncGame, err := client.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"})
+		if err != nil {
+			logger.Error("NotifyRoomGameStart EnterGame error:", zap.Error(err))
+			return
+		}
+		logger.Debug("majsoul SyncGame", zap.Reflect("resSyncGame", resSyncGame))
 	}
 
 	<-ctx.Done()

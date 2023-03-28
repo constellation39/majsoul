@@ -233,7 +233,7 @@ func (majsoul *Majsoul) initVersion(ctx context.Context) (err error) {
 	return
 }
 
-func (majsoul *Majsoul) ConnGame(ctx context.Context, connectToken, gameUuid string) (err error) {
+func (majsoul *Majsoul) ConnGame(ctx context.Context) (err error) {
 	connUrl, err := url.Parse(majsoul.ServerAddress.GameAddress)
 	if err != nil {
 		logger.Error("failed to parse GameAddress: ", zap.String("GameAddress", majsoul.ServerAddress.GameAddress), zap.Error(err))
@@ -264,23 +264,6 @@ func (majsoul *Majsoul) ConnGame(ctx context.Context, connectToken, gameUuid str
 	majsoul.FastTestConn = clinet
 	majsoul.FastTestClient = message.NewFastTestClient(majsoul.FastTestConn)
 	go majsoul.receiveGame(ctx)
-
-	majsoul.GameInfo, err = majsoul.AuthGame(ctx, &message.ReqAuthGame{
-		AccountId: majsoul.Account.AccountId,
-		Token:     connectToken,
-		GameUuid:  gameUuid,
-	})
-	if err != nil {
-		logger.Error("NotifyRoomGameStart AuthGame error: ", zap.Error(err))
-		return
-	}
-
-	_, err = majsoul.EnterGame(ctx, &message.ReqCommon{})
-	if err != nil {
-		logger.Error("NotifyRoomGameStart EnterGame error:", zap.Error(err))
-		return
-	}
-
 	return
 }
 
