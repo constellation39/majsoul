@@ -12,15 +12,30 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	account  = flag.String("account", "", "majsoul login when the account(email or mobile number).")
+	password = flag.String("password", "", "majsoul login when the password.")
+)
+
 type Majsoul struct {
 	*majsoul.Majsoul
 	seat uint32
 }
 
-var (
-	account  = flag.String("account", "", "majsoul login when the account(email or mobile number).")
-	password = flag.String("password", "", "majsoul login when the password.")
-)
+func NewMajSoul(ctx context.Context) (*Majsoul, error) {
+	// 初始化一个客户端
+	subClient, err := majsoul.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+	client := &Majsoul{Majsoul: subClient}
+	// Majsoul 是一个处理麻将游戏逻辑的结构体。要使用它，请先创建一个 Majsoul 对象，
+	// 需要监听雀魂服务器下发通知时，需要实现这个接口 majsoul.Implement
+	// majsoul.Majsoul 原生实现了这个接口，只需要重写需要的方法即可
+	client.Implement(client)
+	logger.Info("majsoul client is created.", zap.Reflect("ServerAddress", subClient.ServerAddress))
+	return client, nil
+}
 
 // NotifyClientMessage 客户端消息
 // message.NotifyClientMessage filed Type == 1 时为受到邀请
@@ -455,19 +470,12 @@ func main() {
 		return
 	}
 
-	// 初始化一个客户端
 	ctx := context.Background()
-	subClient, err := majsoul.New(ctx)
+	client, err := NewMajSoul(ctx)
 	if err != nil {
 		logger.Error("majsoul client is not created.", zap.Error(err))
 		return
 	}
-	client := &Majsoul{Majsoul: subClient}
-	// 使用了多态的方式实现
-	// 需要监听雀魂服务器下发通知时，需要实现这个接口 majsoul.Implement
-	// majsoul.Majsoul 原生实现了这个接口，只需要重写需要的方法即可
-	subClient.Implement = client
-	logger.Info("majsoul client is created.", zap.Reflect("ServerAddress", subClient.ServerAddress))
 
 	timeOutCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
