@@ -17,8 +17,8 @@ import (
 	"nhooyr.io/websocket"
 
 	"github.com/constellation39/majsoul/message"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 type wsConfig struct {

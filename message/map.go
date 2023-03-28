@@ -1,7 +1,7 @@
 package message
 
 import (
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // GetNotifyType 通过api名字返回具体的结构类型

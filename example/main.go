@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 type Majsoul struct {
 	*majsoul.Majsoul
+	seat uint32
 }
 
 var (
@@ -20,7 +22,10 @@ var (
 	password = flag.String("password", "", "majsoul login when the password.")
 )
 
-func (majsoul *Majsoul) NotifyClientMessage(ctx context.Context, notify *message.NotifyClientMessage) {
+// NotifyClientMessage 客户端消息
+// message.NotifyClientMessage filed Type == 1 时为受到邀请
+// note: 这个函数的只实现了接受到邀请的通知
+func (mSoul *Majsoul) NotifyClientMessage(ctx context.Context, notify *message.NotifyClientMessage) {
 	type DetailRule struct {
 		TimeFixed    int  `json:"time_fixed"`
 		TimeAdd      int  `json:"time_add"`
@@ -46,58 +51,188 @@ func (majsoul *Majsoul) NotifyClientMessage(ctx context.Context, notify *message
 		Verified  int    `json:"verified"`
 		AccountID int    `json:"account_id"`
 	}
+	// 我们现在只处理 type == 1 , 也就是收到邀请的情况
+	if notify.Type != 1 {
+		logger.Info("notify.Type != -1", zap.Uint32("type", notify.Type))
+		return
+	}
 	invitationRoom := new(InvitationRoom)
 	err := json.Unmarshal([]byte(notify.Content), invitationRoom)
 	if err != nil {
 		logger.Error("Unmarshal", zap.Error(err))
 		return
 	}
-}
 
-func main() {
-	flag.Parse()
-	logger.EnableDevelopment()
-
-	if *account == "" {
-		logger.Error("account is required.")
-		return
-	}
-
-	if *password == "" {
-		logger.Error("password is required.")
-		return
-	}
-
-	// 初始化一个客户端
-	ctx := context.Background()
-	subClient, err := majsoul.New(ctx)
+	// 加入房间
+	_, err = mSoul.JoinRoom(ctx, &message.ReqJoinRoom{
+		RoomId:              invitationRoom.RoomID,
+		ClientVersionString: mSoul.Version.Web(),
+	})
 	if err != nil {
-		logger.Error("majsoul client is not created.", zap.Error(err))
+		logger.Error("JoinRoom", zap.Error(err))
 		return
 	}
-	client := &Majsoul{Majsoul: subClient}
-	// 使用了多态的方式实现
-	// 需要监听雀魂服务器下发通知时，需要实现这个接口 majsoul.Implement
-	// majsoul.Majsoul 原生实现了这个接口，只需要重写需要的方法即可
-	subClient.Implement = client
-	logger.Info("majsoul client is created.", zap.Reflect("ServerAddress", subClient.ServerAddress))
 
-	// 按照雀魂web端的请求进行模拟
-	timeOutCtx, cancel := context.WithTimeout(ctx, time.Second*10)
-	defer cancel()
-	resLogin, err := client.Login(timeOutCtx, *account, *password)
-	if err != nil {
-		logger.Error("majsoul login error.", zap.Error(err))
-		return
-	}
-	logger.Info("majsoul login.", zap.Reflect("resLogin", resLogin))
+	time.Sleep(time.Second)
 
-	err = UpdateLoginInfo(ctx, client)
+	// 准备
+	_, err = mSoul.ReadyPlay(ctx, &message.ReqRoomReady{Ready: true})
 	if err != nil {
+		logger.Error("ReadyPlay", zap.Error(err))
 		return
 	}
 }
 
+// NotifyEndGameVote 有人发起投降
+func (mSoul *Majsoul) NotifyEndGameVote(ctx context.Context, notify *message.NotifyEndGameVote) {
+	_, err := mSoul.VoteGameEnd(ctx, &message.ReqVoteGameEnd{Yes: true})
+	if err != nil {
+		logger.Error("VoteGameEnd", zap.Error(err))
+	}
+}
+
+// 从等待房间进入游戏时
+func (mSoul *Majsoul) NotifyRoomGameStart(ctx context.Context, notify *message.NotifyRoomGameStart) {
+	// 记录自己的座位号
+	for i, uid := range mSoul.GameInfo.SeatList {
+		if uid == mSoul.Account.AccountId {
+			mSoul.seat = uint32(i)
+			break
+		}
+	}
+}
+
+// ActionMJStart 游戏开始
+func (mSoul *Majsoul) ActionMJStart(context.Context, *message.ActionMJStart) {
+}
+
+// ActionNewRound 回合开始
+func (mSoul *Majsoul) ActionNewRound(ctx context.Context, action *message.ActionNewRound) {
+	// 如果是庄家
+	if len(action.Tiles) != 14 {
+		return
+	}
+	tile13 := action.Tiles[13]
+	time.Sleep(time.Second * 3)
+	_, err := mSoul.InputOperation(ctx, &message.ReqSelfOperation{
+		Type:    majsoul.ActionDiscard,
+		Tile:    tile13,
+		Moqie:   true,
+		Timeuse: 1,
+	})
+	if err != nil {
+		logger.Panic("InputOperation failed", zap.Error(err))
+	}
+}
+
+// ActionDealTile 摸牌
+func (mSoul *Majsoul) ActionDealTile(ctx context.Context, action *message.ActionDealTile) {
+	// 如果不是自己摸牌
+	if action.Seat != mSoul.seat {
+		return
+	}
+
+	if action.Operation != nil && len(action.Operation.OperationList) != 0 {
+		for _, operation := range action.Operation.OperationList {
+			switch operation.Type {
+			case majsoul.ActionDiscard:
+				time.Sleep(time.Second * 3)
+				_, err := mSoul.InputOperation(ctx, &message.ReqSelfOperation{
+					Type:    majsoul.ActionDiscard,
+					Tile:    action.Tile,
+					Moqie:   true,
+					Timeuse: 1,
+				})
+				if err != nil {
+					logger.Panic("InputOperation failed", zap.Error(err))
+				}
+			case majsoul.ActionChi:
+			case majsoul.ActionPon:
+			case majsoul.ActionAnKAN:
+			case majsoul.ActionMinKan:
+			case majsoul.ActionKaKan:
+			case majsoul.ActionRiichi:
+			case majsoul.ActionTsumo:
+			case majsoul.ActionRon:
+			case majsoul.ActionKuku:
+			case majsoul.ActionKita:
+			case majsoul.ActionPass:
+			}
+		}
+	}
+
+}
+
+// ActionDiscardTile 打牌
+func (mSoul *Majsoul) ActionDiscardTile(ctx context.Context, action *message.ActionDiscardTile) {
+	if action.Operation != nil && len(action.Operation.OperationList) != 0 {
+		for _, operation := range action.Operation.OperationList {
+			switch operation.Type {
+			case majsoul.ActionDiscard:
+			case majsoul.ActionChi:
+			case majsoul.ActionPon:
+			case majsoul.ActionAnKAN:
+			case majsoul.ActionMinKan:
+			case majsoul.ActionKaKan:
+			case majsoul.ActionRiichi:
+			case majsoul.ActionTsumo:
+			case majsoul.ActionRon:
+			case majsoul.ActionKuku:
+			case majsoul.ActionKita:
+			case majsoul.ActionPass:
+				if action.Operation != nil {
+					_, err := mSoul.InputOperation(ctx, &message.ReqSelfOperation{
+						CancelOperation: true,
+						Timeuse:         1,
+					})
+					if err != nil {
+						logger.Panic("InputOperation failed", zap.Error(err))
+					}
+				}
+			}
+		}
+	}
+}
+
+// ActionChiPengGang 吃碰杠的通知
+func (mSoul *Majsoul) ActionChiPengGang(ctx context.Context, action *message.ActionChiPengGang) {
+	switch action.Type {
+	case majsoul.NotifyChi:
+	case majsoul.NotifyPon:
+	case majsoul.NotifyKan:
+	}
+}
+
+// ActionAnGangAddGang 暗杠和加杠的通知
+func (mSoul *Majsoul) ActionAnGangAddGang(ctx context.Context, action *message.ActionAnGangAddGang) {
+	switch action.Type {
+	case majsoul.NotifyAnKan:
+	case majsoul.NotifyKaKan:
+	}
+}
+
+func (mSoul *Majsoul) ActionHule(ctx context.Context, action *message.ActionHule) {
+}
+
+func (mSoul *Majsoul) ActionLiuJu(ctx context.Context, action *message.ActionLiuJu) {
+}
+
+func (mSoul *Majsoul) ActionNoTile(ctx context.Context, action *message.ActionNoTile) {
+}
+
+// ActionBaBei(ctx context.Context, action *message.ActionBaBei)
+// ActionNewCard(ctx context.Context,action *message.ActionNewCard)
+// ActionSelectGap(ctx context.Context,action *message.ActionSelectGap)
+// ActionChangeTile(ctx context.Context,action *message.ActionChangeTile)
+// ActionRevealTile(ctx context.Context,action *message.ActionRevealTile)
+// ActionUnveilTile(ctx context.Context,action *message.ActionUnveilTile)
+// ActionLockTile(ctx context.Context,action *message.ActionLockTile)
+// ActionGangResult(ctx context.Context,action *message.ActionGangResult)
+// ActionGangResultEnd(ctx context.Context,action *message.ActionGangResultEnd)
+// ActionHuleXueZhanMid(ctx context.Context,action *message.ActionHuleXueZhanMid)
+// ActionHuleXueZhanEnd(ctx context.Context,action *message.ActionHuleXueZhanEnd)
+
+// 按照雀魂web端的请求进行模拟
 func UpdateLoginInfo(ctx context.Context, client *Majsoul) error {
 	resFetchLastPrivacy, err := client.FetchLastPrivacy(ctx, &message.ReqFetchLastPrivacy{})
 	if err != nil {
@@ -304,4 +439,62 @@ func UpdateLoginInfo(ctx context.Context, client *Majsoul) error {
 	logger.Info("majsoul LoginSuccess.", zap.Reflect("resCommon", resCommon))
 
 	return nil
+}
+
+func main() {
+	flag.Parse()
+	logger.EnableDevelopment()
+
+	if *account == "" {
+		logger.Error("account is required.")
+		return
+	}
+
+	if *password == "" {
+		logger.Error("password is required.")
+		return
+	}
+
+	// 初始化一个客户端
+	ctx := context.Background()
+	subClient, err := majsoul.New(ctx)
+	if err != nil {
+		logger.Error("majsoul client is not created.", zap.Error(err))
+		return
+	}
+	client := &Majsoul{Majsoul: subClient}
+	// 使用了多态的方式实现
+	// 需要监听雀魂服务器下发通知时，需要实现这个接口 majsoul.Implement
+	// majsoul.Majsoul 原生实现了这个接口，只需要重写需要的方法即可
+	subClient.Implement = client
+	logger.Info("majsoul client is created.", zap.Reflect("ServerAddress", subClient.ServerAddress))
+
+	timeOutCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+	resLogin, err := client.Login(timeOutCtx, *account, *password)
+	if err != nil {
+		logger.Error("majsoul login error.", zap.Error(err))
+		return
+	}
+	if resLogin.Error != nil && resLogin.Error.Code != 0 {
+		logger.Error("majsoul login error.", zap.Uint32("Code", resLogin.Error.Code))
+	}
+	logger.Info("majsoul login.", zap.Reflect("resLogin", resLogin))
+
+	err = UpdateLoginInfo(ctx, client)
+	if err != nil {
+		return
+	}
+
+	// 检查是否在游戏中
+	if resLogin.Account != nil && resLogin.Account.RoomId != 0 {
+		err := client.ConnGame(ctx, resLogin.GameInfo.ConnectToken, resLogin.GameInfo.GameUuid)
+		if err != nil {
+			logger.Error("NotifyRoomGameStart ConnGame error: ", zap.Error(err))
+			return
+		}
+		client.SyncGame(ctx, &message.ReqSyncGame{})
+	}
+
+	<-ctx.Done()
 }

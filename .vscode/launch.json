@@ -12,10 +12,24 @@
             "program": "${workspaceFolder}\\example\\main.go",
             "args": [
                 "--account",
-                "1601198895@qq.com",
+                "${input:account}",
                 "--password",
-                "miku39..",
+                "${input:password}"
             ],
+        }
+    ],
+    "inputs": [
+        {
+            "type": "promptString",
+            "id": "account",
+            "description": "account.",
+            "default": ""
+        },
+        {
+            "type": "promptString",
+            "id": "password",
+            "description": "password.",
+            "default": ""
         }
     ]
 }

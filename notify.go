@@ -2,13 +2,11 @@ package majsoul
 
 import (
 	"context"
-	"net/http"
-	"net/url"
 
 	"github.com/constellation39/majsoul/logger"
 	"github.com/constellation39/majsoul/message"
-	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 // IFNotify is the interface that must be implemented by a receiver.
@@ -20,51 +18,9 @@ func (majsoul *Majsoul) NotifyCaptcha(ctx context.Context, notify *message.Notif
 func (majsoul *Majsoul) NotifyRoomGameStart(ctx context.Context, notify *message.NotifyRoomGameStart) {
 	logger.Debug("NotifyRoomGameStart", zap.Reflect("notify", notify))
 
-	connUrl, err := url.Parse(majsoul.ServerAddress.GameAddress)
+	err := majsoul.ConnGame(ctx, notify.ConnectToken, notify.GameUuid)
 	if err != nil {
-		logger.Error("failed to parse GameAddress: ", zap.String("GameAddress", majsoul.ServerAddress.GameAddress), zap.Error(err))
-	}
-
-	header := http.Header{}
-	header.Add("Accept-Encoding", "gzip, deflate, br")
-	header.Add("Accept-Language", "zh-CN,zh;q=0.9,ja;q=0.8,en;q=0.7,en-GB;q=0.6,en-US;q=0.5")
-	header.Add("Cache-Control", "no-cache")
-	header.Add("Host", connUrl.Host)
-	header.Add("Origin", majsoul.ServerAddress.ServerAddress)
-	header.Add("Pragma", "no-cache")
-	header.Add("User-Agent", UserAgent)
-
-	clinet := newWsClient(&wsConfig{
-		ConnAddress:       majsoul.ServerAddress.GameAddress,
-		ProxyAddress:      majsoul.Config.GameProxy,
-		RequestHeaders:    header,
-		ReconnectInterval: majsoul.Config.ReconnectInterval,
-		ReconnectNumber:   majsoul.Config.ReconnectNumber,
-	})
-	err = clinet.Connect(ctx)
-	if err != nil {
-		logger.Error("failed to connect to GameServer: ", zap.String("GameAddress", majsoul.ServerAddress.GameAddress), zap.Error(err))
-		return
-	}
-
-	majsoul.FastTestConn = clinet
-	majsoul.FastTestClient = message.NewFastTestClient(majsoul.FastTestConn)
-
-	go majsoul.receiveGame(ctx)
-
-	majsoul.GameInfo, err = majsoul.AuthGame(ctx, &message.ReqAuthGame{
-		AccountId: majsoul.Account.AccountId,
-		Token:     notify.ConnectToken,
-		GameUuid:  notify.GameUuid,
-	})
-	if err != nil {
-		logger.Error("NotifyRoomGameStart AuthGame error: ", zap.Error(err))
-		return
-	}
-
-	_, err = majsoul.EnterGame(ctx, &message.ReqCommon{})
-	if err != nil {
-		logger.Error("NotifyRoomGameStart EnterGame error:", zap.Error(err))
+		logger.Error("NotifyRoomGameStart ConnGame error: ", zap.Error(err))
 		return
 	}
 }
@@ -252,6 +208,7 @@ func (majsoul *Majsoul) NotifyGameEndResult(ctx context.Context, notify *message
 func (majsoul *Majsoul) NotifyGameTerminate(ctx context.Context, notify *message.NotifyGameTerminate) {
 	logger.Debug("NotifyGameTerminate", zap.Reflect("notify", notify))
 	majsoul.FastTestConn = nil
+	majsoul.FastTestClient = nil
 }
 
 func (majsoul *Majsoul) NotifyPlayerConnectionState(ctx context.Context, notify *message.NotifyPlayerConnectionState) {
@@ -407,49 +364,69 @@ func (majsoul *Majsoul) ActionPrototype(ctx context.Context, notify *message.Act
 	decode(notify.Data)
 	err := proto.Unmarshal(notify.Data, data)
 	if err != nil {
-		logger.Error("ActionPrototype Unmarshal notify data failed: ", zap.String("name", notify.Name), zap.ByteString("data", notify.Data))
+		logger.Error("ActionPrototype Unmarshal notify data failed: ", zap.Error(err), zap.Reflect("notify", notify))
 		return
 	}
 	switch notify.Name {
 	case "ActionMJStart":
+		majsoul.ActionMJStart(ctx, data.(*message.ActionMJStart))
 		majsoul.Implement.ActionMJStart(ctx, data.(*message.ActionMJStart))
 	case "ActionNewCard":
+		majsoul.ActionNewCard(ctx, data.(*message.ActionNewCard))
 		majsoul.Implement.ActionNewCard(ctx, data.(*message.ActionNewCard))
 	case "ActionNewRound":
+		majsoul.ActionNewRound(ctx, data.(*message.ActionNewRound))
 		majsoul.Implement.ActionNewRound(ctx, data.(*message.ActionNewRound))
 	case "ActionSelectGap":
+		majsoul.ActionSelectGap(ctx, data.(*message.ActionSelectGap))
 		majsoul.Implement.ActionSelectGap(ctx, data.(*message.ActionSelectGap))
 	case "ActionChangeTile":
+		majsoul.ActionChangeTile(ctx, data.(*message.ActionChangeTile))
 		majsoul.Implement.ActionChangeTile(ctx, data.(*message.ActionChangeTile))
 	case "ActionRevealTile":
+		majsoul.ActionRevealTile(ctx, data.(*message.ActionRevealTile))
 		majsoul.Implement.ActionRevealTile(ctx, data.(*message.ActionRevealTile))
 	case "ActionUnveilTile":
+		majsoul.ActionUnveilTile(ctx, data.(*message.ActionUnveilTile))
 		majsoul.Implement.ActionUnveilTile(ctx, data.(*message.ActionUnveilTile))
 	case "ActionLockTile":
+		majsoul.ActionLockTile(ctx, data.(*message.ActionLockTile))
 		majsoul.Implement.ActionLockTile(ctx, data.(*message.ActionLockTile))
 	case "ActionDiscardTile":
+		majsoul.ActionDiscardTile(ctx, data.(*message.ActionDiscardTile))
 		majsoul.Implement.ActionDiscardTile(ctx, data.(*message.ActionDiscardTile))
 	case "ActionDealTile":
+		majsoul.ActionDealTile(ctx, data.(*message.ActionDealTile))
 		majsoul.Implement.ActionDealTile(ctx, data.(*message.ActionDealTile))
 	case "ActionChiPengGang":
+		majsoul.ActionChiPengGang(ctx, data.(*message.ActionChiPengGang))
 		majsoul.Implement.ActionChiPengGang(ctx, data.(*message.ActionChiPengGang))
 	case "ActionGangResult":
+		majsoul.ActionGangResult(ctx, data.(*message.ActionGangResult))
 		majsoul.Implement.ActionGangResult(ctx, data.(*message.ActionGangResult))
 	case "ActionGangResultEnd":
+		majsoul.ActionGangResultEnd(ctx, data.(*message.ActionGangResultEnd))
 		majsoul.Implement.ActionGangResultEnd(ctx, data.(*message.ActionGangResultEnd))
 	case "ActionAnGangAddGang":
+		majsoul.ActionAnGangAddGang(ctx, data.(*message.ActionAnGangAddGang))
 		majsoul.Implement.ActionAnGangAddGang(ctx, data.(*message.ActionAnGangAddGang))
 	case "ActionBaBei":
+		majsoul.ActionBaBei(ctx, data.(*message.ActionBaBei))
 		majsoul.Implement.ActionBaBei(ctx, data.(*message.ActionBaBei))
 	case "ActionHule":
+		majsoul.ActionHule(ctx, data.(*message.ActionHule))
 		majsoul.Implement.ActionHule(ctx, data.(*message.ActionHule))
 	case "ActionHuleXueZhanMid":
+		majsoul.ActionHuleXueZhanMid(ctx, data.(*message.ActionHuleXueZhanMid))
 		majsoul.Implement.ActionHuleXueZhanMid(ctx, data.(*message.ActionHuleXueZhanMid))
 	case "ActionHuleXueZhanEnd":
+		majsoul.ActionHuleXueZhanEnd(ctx, data.(*message.ActionHuleXueZhanEnd))
 		majsoul.Implement.ActionHuleXueZhanEnd(ctx, data.(*message.ActionHuleXueZhanEnd))
 	case "ActionLiuJu":
+		majsoul.ActionLiuJu(ctx, data.(*message.ActionLiuJu))
 		majsoul.Implement.ActionLiuJu(ctx, data.(*message.ActionLiuJu))
 	case "ActionNoTile":
+		majsoul.ActionNoTile(ctx, data.(*message.ActionNoTile))
 		majsoul.Implement.ActionNoTile(ctx, data.(*message.ActionNoTile))
 	default:
 		logger.Error("unknown notify name: ", zap.String("name", notify.Name))
