@@ -74,8 +74,8 @@ var (
 )
 
 type Implement interface {
-	IFNotify // IFNotify 大厅通知下发
-	IFAction // IFAction 游戏桌面内下发
+	Notify // Notify 大厅通知下发
+	Action // Action 游戏桌面内下发
 }
 
 type Config struct {
@@ -128,8 +128,8 @@ func WithReconnect(number int, interval time.Duration) ConfigOption {
 type Majsoul struct {
 	message.LobbyClient                         // message.LobbyClient 更多时候在大厅时调用的是该接口
 	message.FastTestClient                      // message.FastTestClient 场景处于游戏桌面时调用该接口
-	LobbyConn              *wsClient            // lobbyConn 是 message.LobbyClient 使用的连接
-	FastTestConn           *wsClient            // fastTestConn 是 message.FastTestClient 使用的连接
+	lobbyConn              *wsClient            // lobbyConn 是 message.LobbyClient 使用的连接
+	fastTestConn           *wsClient            // fastTestConn 是 message.FastTestClient 使用的连接
 	implement              Implement            // 使得程序可以以多态的方式调用 message.LobbyClient 或 message.FastTestClient 的接口
 	UUID                   string               // uuid
 	ServerAddress          *ServerAddress       // 连接到的服务器地址
@@ -170,6 +170,42 @@ func New(ctx context.Context, configOptions ...ConfigOption) (majsoul *Majsoul, 
 	go majsoul.heatbeat(ctx)
 	go majsoul.receiveConn(ctx)
 	return majsoul, nil
+}
+
+func (majsoul *Majsoul) setLobbyClient(client *wsClient) {
+	if majsoul.lobbyConn != nil {
+		majsoul.CloseLobbyClient()
+	}
+	majsoul.lobbyConn = client
+	majsoul.LobbyClient = message.NewLobbyClient(client)
+}
+
+func (majsoul *Majsoul) CloseLobbyClient() {
+	if majsoul.lobbyConn != nil {
+		majsoul.lobbyConn.Close()
+		majsoul.lobbyConn = nil
+	}
+	if majsoul.lobbyConn != nil {
+		majsoul.LobbyClient = nil
+	}
+}
+
+func (majsoul *Majsoul) setFastTestClient(client *wsClient) {
+	if majsoul.fastTestConn != nil {
+		majsoul.CloseFastTestClient()
+	}
+	majsoul.fastTestConn = client
+	majsoul.FastTestClient = message.NewFastTestClient(client)
+}
+
+func (majsoul *Majsoul) CloseFastTestClient() {
+	if majsoul.fastTestConn != nil {
+		majsoul.fastTestConn.Close()
+		majsoul.fastTestConn = nil
+	}
+	if majsoul.FastTestClient != nil {
+		majsoul.FastTestClient = nil
+	}
 }
 
 // Implement 每一个Majsoul对象都应该调用一次该方法，入参可以是Majsoul实例自己
@@ -221,11 +257,15 @@ func (majsoul *Majsoul) tryNew(ctx context.Context) (err error) {
 		}
 		majsoul.ServerAddress = serverAddress
 		majsoul.Request = r
-		majsoul.LobbyConn = client
-		majsoul.LobbyClient = message.NewLobbyClient(client)
+		majsoul.setLobbyClient(client)
 		return nil
 	}
 	return ErrorNoServerAvailable
+}
+
+func (majsoul *Majsoul) Close() {
+	majsoul.CloseFastTestClient()
+	majsoul.CloseLobbyClient()
 }
 
 // initVersion 获取版本
@@ -263,10 +303,48 @@ func (majsoul *Majsoul) ConnGame(ctx context.Context) (err error) {
 		return
 	}
 
-	majsoul.FastTestConn = clinet
-	majsoul.FastTestClient = message.NewFastTestClient(majsoul.FastTestConn)
+	majsoul.setFastTestClient(clinet)
 	go majsoul.receiveGame(ctx)
 	return
+}
+
+// ReConnGame reconnects to the game server.
+func (majsoul *Majsoul) ReConnGame(ctx context.Context, resLogin *message.ResLogin) error {
+	if resLogin.Account == nil || resLogin.Account.RoomId == 0 {
+		return nil
+	}
+
+	if err := majsoul.ConnGame(ctx); err != nil {
+		return err
+	}
+
+	var err error
+	majsoul.GameInfo, err = majsoul.AuthGame(ctx, &message.ReqAuthGame{
+		AccountId: majsoul.Account.AccountId,
+		Token:     resLogin.GameInfo.ConnectToken,
+		GameUuid:  resLogin.GameInfo.GameUuid,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to authenticate game connection: %v", err)
+	}
+
+	if _, err := majsoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
+		return fmt.Errorf("failed to sync game state: %v", err)
+	}
+
+	if _, err := majsoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+		return fmt.Errorf("failed to fetch game player state: %v", err)
+	}
+
+	if _, err := majsoul.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
+		return fmt.Errorf("failed to fetch game player state: %v", err)
+	}
+
+	if _, err := majsoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+		return fmt.Errorf("failed to fetch game player state after syncing: %v", err)
+	}
+
+	return nil
 }
 
 type Version struct {
@@ -307,7 +385,7 @@ func (majsoul *Majsoul) heatbeat(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t5.C:
-			if majsoul.FastTestConn != nil {
+			if majsoul.fastTestConn != nil {
 				continue
 			}
 			_, err := majsoul.Heatbeat(ctx, &message.ReqHeatBeat{})
@@ -316,7 +394,7 @@ func (majsoul *Majsoul) heatbeat(ctx context.Context) {
 				return
 			}
 		case <-t2.C:
-			if majsoul.FastTestConn == nil {
+			if majsoul.fastTestConn == nil {
 				continue
 			}
 			_, err := majsoul.CheckNetworkDelay(ctx, &message.ReqCommon{})
@@ -329,30 +407,38 @@ func (majsoul *Majsoul) heatbeat(ctx context.Context) {
 }
 
 func (majsoul *Majsoul) receiveConn(ctx context.Context) {
+	if majsoul.lobbyConn == nil {
+		logger.Panic("majsoul.lobbyConn is nil")
+	}
+	receive := majsoul.lobbyConn.Receive()
 	for {
-		if majsoul.LobbyConn == nil {
-			logger.Debug("lobbyConn lost")
-			return
-		}
 		select {
 		case <-ctx.Done():
 			return
-		case data := <-majsoul.LobbyConn.Receive():
+		case data, ok := <-receive:
+			if !ok {
+				logger.Debug("lobbyConn close")
+				return
+			}
 			majsoul.handleNotify(ctx, data)
 		}
 	}
 }
 
 func (majsoul *Majsoul) receiveGame(ctx context.Context) {
+	if majsoul.fastTestConn == nil {
+		logger.Panic("majsoul.fastTestConn is nil")
+	}
+	receive := majsoul.fastTestConn.Receive()
 	for {
-		if majsoul.FastTestConn == nil {
-			logger.Debug("fastTestConn lost")
-			return
-		}
 		select {
 		case <-ctx.Done():
 			return
-		case data := <-majsoul.FastTestConn.Receive():
+		case data, ok := <-receive:
+			if !ok {
+				logger.Debug("fastTestConn close")
+				return
+			}
 			majsoul.handleNotify(ctx, data)
 		}
 	}
@@ -554,31 +640,30 @@ func hashPassword(data string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func ErrorCode(err *message.Error) string {
-	var errmsg string
+func ErrorCode(err *message.Error) (msg string) {
 	switch err.Code {
 	case 0:
-		errmsg = ""
+		msg = ""
 	case 103:
-		errmsg = "维护中，服务器暂未开放(103)"
+		msg = "维护中，服务器暂未开放"
 	case 109:
-		errmsg = "授权出错，登入已过期，请重新登入(109)"
+		msg = "授权出错，登入已过期，请重新登入"
 	case 1002:
-		errmsg = "账号不存在，请先注册(1002)"
+		msg = "账号不存在，请先注册"
 	case 1003:
-		errmsg = "密码错误(1003)"
+		msg = "账号或密码错误"
 	default:
-		errmsg = fmt.Sprintf("未知错误(%d)，服务器返回信息：%s",
+		msg = fmt.Sprintf("unknown code (%d), message:%s",
 			err.Code, strings.Join(err.StrParams, " "))
 	}
-	return errmsg
+	return
 }
 
-// message.LobbyClient
 // OnReconnect 断线重连
 // 这个callbreak内应该先与服务器进行验权，在进行接下来的交互
+// 拥有一个默认实现
 func (majsoul *Majsoul) OnReconnect(callbreak func(ctx context.Context)) {
-	majsoul.LobbyConn.ReconnectHandler = callbreak
+	majsoul.lobbyConn.ReconnectHandler = callbreak
 }
 
 // Login 登录/重连，这是一个额外实现，并不属于 proto 或者 GRPC 的定义中
@@ -665,8 +750,7 @@ func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*m
 			}
 			logger.Error("majsoul Oauth2Login.", zap.Reflect("resLogin", resLogin))
 		})
+		majsoul.ReConnGame(ctx, resLogin)
 	}
 	return resLogin, nil
 }
-
-// message.FastTestClient

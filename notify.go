@@ -218,8 +218,9 @@ func (majsoul *Majsoul) NotifyGameEndResult(ctx context.Context, notify *message
 
 func (majsoul *Majsoul) NotifyGameTerminate(ctx context.Context, notify *message.NotifyGameTerminate) {
 	logger.Debug("NotifyGameTerminate", zap.Reflect("notify", notify))
-	majsoul.FastTestConn = nil
+	majsoul.fastTestConn = nil
 	majsoul.FastTestClient = nil
+	majsoul.CloseFastTestClient()
 }
 
 func (majsoul *Majsoul) NotifyPlayerConnectionState(ctx context.Context, notify *message.NotifyPlayerConnectionState) {

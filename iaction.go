@@ -6,8 +6,8 @@ import (
 	"github.com/constellation39/majsoul/message"
 )
 
-// IFAction 游戏内消息接口
-type IFAction interface {
+// Action 游戏内消息接口
+type Action interface {
 	ActionMJStart(context.Context, *message.ActionMJStart)
 	ActionNewCard(context.Context, *message.ActionNewCard)
 	ActionNewRound(context.Context, *message.ActionNewRound)

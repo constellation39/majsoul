@@ -107,6 +107,7 @@ func (client *wsClient) reConnect(ctx context.Context) {
 
 		if client.ReconnectHandler != nil {
 			client.ReconnectHandler(ctx)
+			return
 		}
 	}
 }
@@ -341,7 +342,7 @@ func (client *wsClient) RecvMsg(ctx context.Context, reply *Reply) error {
 	case <-client.close:
 		return websocket.CloseError{}
 	case <-time.After(time.Minute):
-		return fmt.Errorf("Timeout waiting for response message after %s\n", time.Minute)
+		return fmt.Errorf("Timeout waiting for response message after %s", time.Minute)
 	case <-ctx.Done():
 	case <-reply.wait:
 	}
