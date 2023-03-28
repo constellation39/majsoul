@@ -136,7 +136,7 @@ func (mSoul *Majsoul) ActionNewRound(ctx context.Context, action *message.Action
 		Timeuse: 1,
 	})
 	if err != nil {
-		logger.Panic("InputOperation failed", zap.Error(err))
+		logger.Error("InputOperation failed", zap.Error(err))
 	}
 }
 
@@ -159,7 +159,7 @@ func (mSoul *Majsoul) ActionDealTile(ctx context.Context, action *message.Action
 					Timeuse: 1,
 				})
 				if err != nil {
-					logger.Panic("InputOperation failed", zap.Error(err))
+					logger.Error("InputOperation failed", zap.Error(err))
 				}
 			case majsoul.ActionChi:
 			case majsoul.ActionPon:
@@ -201,7 +201,7 @@ func (mSoul *Majsoul) ActionDiscardTile(ctx context.Context, action *message.Act
 						Timeuse:         1,
 					})
 					if err != nil {
-						logger.Panic("InputOperation failed", zap.Error(err))
+						logger.Error("InputOperation failed", zap.Error(err))
 					}
 				}
 			}
@@ -495,8 +495,13 @@ func main() {
 		return
 	}
 
-	// 重连支持
-	client.ReConnGame(ctx, resLogin)
+	if resLogin.Account != nil && resLogin.Account.AccountId != 0 {
+		err := client.ReConnGame(ctx, resLogin)
+		if err != nil {
+			logger.Error("majsoul ReConnGame error.", zap.Error(err))
+			return
+		}
+	}
 
 	<-ctx.Done()
 }

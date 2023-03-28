@@ -328,20 +328,28 @@ func (majsoul *Majsoul) ReConnGame(ctx context.Context, resLogin *message.ResLog
 		return fmt.Errorf("failed to authenticate game connection: %v", err)
 	}
 
-	if _, err := majsoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
+	if resSyncGame, err := majsoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
 		return fmt.Errorf("failed to sync game state: %v", err)
+	} else {
+		logger.Debug("majsoul SyncGame.", zap.Reflect("resSyncGame", resSyncGame))
 	}
 
 	if _, err := majsoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
 		return fmt.Errorf("failed to fetch game player state: %v", err)
+	} else {
+		logger.Debug("majsoul FetchGamePlayerState.")
 	}
 
 	if _, err := majsoul.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
 		return fmt.Errorf("failed to fetch game player state: %v", err)
+	} else {
+		logger.Debug("majsoul FinishSyncGame.")
 	}
 
 	if _, err := majsoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
 		return fmt.Errorf("failed to fetch game player state after syncing: %v", err)
+	} else {
+		logger.Debug("majsoul FetchGamePlayerState.")
 	}
 
 	return nil
@@ -750,7 +758,12 @@ func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*m
 			}
 			logger.Error("majsoul Oauth2Login.", zap.Reflect("resLogin", resLogin))
 		})
-		majsoul.ReConnGame(ctx, resLogin)
+		if resLogin.Account != nil && resLogin.Account.AccountId != 0 {
+			err := majsoul.ReConnGame(ctx, resLogin)
+			if err != nil {
+				logger.Error("majsoul ReConnGame error.", zap.Error(err))
+			}
+		}
 	}
 	return resLogin, nil
 }
