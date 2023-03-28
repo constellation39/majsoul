@@ -496,16 +496,35 @@ func main() {
 			GameUuid:  resLogin.GameInfo.GameUuid,
 		})
 		if err != nil {
-			logger.Error("ReConn error: ", zap.Error(err))
+			logger.Error("majsoul AuthGame error: ", zap.Error(err))
 			return
 		}
+		logger.Debug("majsoul AuthGame", zap.Reflect("resGameInfo", client.GameInfo))
 
 		resSyncGame, err := client.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"})
 		if err != nil {
-			logger.Error("NotifyRoomGameStart EnterGame error:", zap.Error(err))
+			logger.Error("majsoul SyncGame error:", zap.Error(err))
 			return
 		}
 		logger.Debug("majsoul SyncGame", zap.Reflect("resSyncGame", resSyncGame))
+
+		resGamePlayerState, err := client.FetchGamePlayerState(ctx, &message.ReqCommon{})
+		if err != nil {
+			logger.Error("majsoul FetchGamePlayerState error:", zap.Error(err))
+		}
+		logger.Debug("majsoul FetchGamePlayerState", zap.Reflect("resGamePlayerState", resGamePlayerState))
+
+		_, err = client.FinishSyncGame(ctx, &message.ReqCommon{})
+		if err != nil {
+			logger.Error("majsoul FinishSyncGame error:", zap.Error(err))
+		}
+		logger.Debug("majsoul FinishSyncGame")
+
+		resGamePlayerState, err = client.FetchGamePlayerState(ctx, &message.ReqCommon{})
+		if err != nil {
+			logger.Error("majsoul FetchGamePlayerState error:", zap.Error(err))
+		}
+		logger.Debug("majsoul FetchGamePlayerState", zap.Reflect("resGamePlayerState", resGamePlayerState))
 	}
 
 	<-ctx.Done()
