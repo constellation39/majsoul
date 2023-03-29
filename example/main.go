@@ -477,9 +477,9 @@ func main() {
 		return
 	}
 
-	timeOutCtx, cancel := context.WithTimeout(ctx, time.Second*10)
-	defer cancel()
+	timeOutCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 	resLogin, err := client.Login(timeOutCtx, *account, *password)
+	cancel()
 	if err != nil {
 		logger.Error("majsoul Login error.", zap.Error(err))
 		return

@@ -75,13 +75,16 @@ func (client *wsClient) getIsConnected() bool {
 func (client *wsClient) Close() {
 	if client.conn != nil {
 		if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
-			logger.Error("failed to close websocket connection", zap.Error(err))
+			logger.Error("ws failed to close websocket connection: ", zap.Error(err))
 		}
 	}
 
-	_, ok := <-client.close
-	if ok {
-		close(client.close)
+	select {
+	case _, ok := <-client.close:
+		if ok {
+			close(client.close)
+		}
+	default:
 	}
 
 	client.setIsConnected(false)
@@ -89,10 +92,10 @@ func (client *wsClient) Close() {
 
 func (client *wsClient) reConnect(ctx context.Context) {
 	for {
-		client.curReconnectNumber++
 		if client.curReconnectNumber >= client.ReconnectNumber {
 			break
 		}
+		client.curReconnectNumber++
 		time.Sleep(client.ReconnectInterval)
 
 		ctx, cancel := context.WithCancel(ctx)
@@ -116,7 +119,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 	select {
 	case _, ok := <-client.close:
 		if !ok {
-			panic("wsClient is closed.")
+			logger.Panic("ws client is closed.")
 		}
 	case <-ctx.Done():
 		return ctx.Err()
@@ -125,7 +128,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		logger.Error("failed to create cookie jar", zap.Error(err))
+		logger.Error("ws failed to create cookie jar: ", zap.Error(err))
 	}
 
 	httpClient := &http.Client{
@@ -168,7 +171,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 func (client *wsClient) readLoop(ctx context.Context) {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.Error("catch exception", zap.Any("err", err))
+			logger.Error("ws catch exception: ", zap.Any("err", err))
 			client.Close()
 			go client.reConnect(ctx)
 		}
@@ -188,7 +191,7 @@ func (client *wsClient) readLoop(ctx context.Context) {
 			break
 		}
 		if msgType != websocket.MessageBinary {
-			logger.Info("unsupported message types: ", zap.Int("t", int(msgType)))
+			logger.Info("ws unsupported message types: ", zap.Int("t", int(msgType)))
 			continue
 		}
 
@@ -198,7 +201,7 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		case MsgTypeResponse:
 			client.handleResponse(payload)
 		default:
-			logger.Info("unknown message types: ", zap.Uint8("value", payload[0]))
+			logger.Info("ws unknown message types: ", zap.Uint8("value", payload[0]))
 		}
 	}
 
@@ -217,19 +220,19 @@ func (client *wsClient) handleNotify(msg []byte) {
 
 	err := proto.Unmarshal(msg[1:], wrapper)
 	if err != nil {
-		logger.Error("notify messages unmarshal error: ", zap.Error(err))
+		logger.Error("ws notify messages unmarshal error: ", zap.Error(err))
 		return
 	}
 
 	notifyMessage := message.GetNotifyType(wrapper.Name)
 	if notifyMessage == nil {
-		logger.Error("unknown notify type: ", zap.String("name", wrapper.Name))
+		logger.Error("ws unknown notify type: ", zap.String("name", wrapper.Name))
 		return
 	}
 
 	err = proto.Unmarshal(wrapper.Data, notifyMessage)
 	if err != nil {
-		logger.Error("notify type unmarshal error: ", zap.Reflect("notify type", notifyMessage), zap.Error(err))
+		logger.Error("ws notify type unmarshal error: ", zap.Reflect("notify type", notifyMessage), zap.Error(err))
 		return
 	}
 
@@ -246,20 +249,20 @@ func (client *wsClient) handleResponse(msg []byte) {
 
 	reply, ok := response.(*Reply)
 	if !ok {
-		logger.Error("response type not proto.Message: ", zap.Reflect("reply", reply))
+		logger.Error("ws response type not proto.Message: ", zap.Reflect("reply", reply))
 		return
 	}
 
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[3:], wrapper)
 	if err != nil {
-		logger.Error("response message unmarshal error: ", zap.Error(err))
+		logger.Error("ws response message unmarshal error: ", zap.Error(err))
 		return
 	}
 
 	err = proto.Unmarshal(wrapper.Data, reply.out)
 	if err != nil {
-		logger.Error("response type unmarshal error: ", zap.Error(err))
+		logger.Error("ws response type unmarshal error: ", zap.Error(err))
 		return
 	}
 
@@ -288,7 +291,7 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 
 	body, err = proto.Marshal(in)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal input message: %v, error: %w", in, err)
+		return nil, fmt.Errorf("ws failed to marshal input message: %v, error: %w", in, err)
 	}
 
 	wrapper := &message.Wrapper{
@@ -298,7 +301,7 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 
 	body, err = proto.Marshal(wrapper)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal input message: %w", err)
+		return nil, fmt.Errorf("ws failed to marshal input message: %w", err)
 	}
 
 	index := atomic.LoadUint32(&client.messageIndex)
@@ -330,7 +333,7 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 	}
 
 	if _, ok := client.requestResponseMap.LoadOrStore(reply.msgIndex, reply); ok {
-		return nil, fmt.Errorf("message index %d already exists in the requestResponseMap", reply.msgIndex)
+		return nil, fmt.Errorf("ws message index %d already exists in the requestResponseMap", reply.msgIndex)
 	}
 
 	return reply, nil
@@ -342,7 +345,7 @@ func (client *wsClient) RecvMsg(ctx context.Context, reply *Reply) error {
 	case <-client.close:
 		return websocket.CloseError{}
 	case <-time.After(time.Minute):
-		return fmt.Errorf("Timeout waiting for response message after %s", time.Minute)
+		return fmt.Errorf("ws timeout waiting for response message after %s", time.Minute)
 	case <-ctx.Done():
 	case <-reply.wait:
 	}
