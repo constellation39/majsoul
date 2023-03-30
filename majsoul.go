@@ -139,8 +139,8 @@ type Majsoul struct {
 	Account                *message.Account     // 该字段应在登录成功后访问
 	GameInfo               *message.ResAuthGame // 该字段应在进入游戏桌面后访问
 
-	onGatewayReconnectCallBreak *func(ctx context.Context)
-	onGameReconnectCallBreak    *func(ctx context.Context)
+	// onGatewayReconnectCallBreak func(ctx context.Context)
+	// onGameReconnectCallBreak    func(ctx context.Context)
 }
 
 // Majsoul 是一个处理麻将游戏逻辑的结构体。要使用它，请先创建一个 Majsoul 对象，
@@ -179,7 +179,7 @@ func (majsoul *Majsoul) setLobbyClient(client *wsClient) {
 	if majsoul.lobbyConn != nil {
 		majsoul.CloseLobbyClient()
 	}
-	client.OnReconnect(majsoul.onGatewayReconnectCallBreak)
+	// client.OnReconnect(majsoul.onGatewayReconnectCallBreak)
 	majsoul.lobbyConn = client
 	majsoul.LobbyClient = message.NewLobbyClient(client)
 }
@@ -198,7 +198,7 @@ func (majsoul *Majsoul) setFastTestClient(client *wsClient) {
 	if majsoul.fastTestConn != nil {
 		majsoul.CloseFastTestClient()
 	}
-	client.OnReconnect(majsoul.onGameReconnectCallBreak)
+	// client.OnReconnect(majsoul.onGameReconnectCallBreak)
 	majsoul.fastTestConn = client
 	majsoul.FastTestClient = message.NewFastTestClient(client)
 }
@@ -753,90 +753,91 @@ func ErrorCode(err *message.Error) (msg string) {
 // onGatewayReconnect 断线重连
 // 这个callbreak内应该先与服务器进行验权，在进行接下来的交互
 // 拥有一个默认实现
-func (majsoul *Majsoul) onGatewayReconnect(resLogin *message.ResLogin) {
-	callbreak := func(ctx context.Context) {
-		accessToken := resLogin.AccessToken
-		resOauth2Check, err := majsoul.Oauth2Check(ctx, &message.ReqOauth2Check{AccessToken: accessToken})
-		if err != nil {
-			logger.Error("majsoul Oauth2Check error.", zap.Error(err))
-		}
-		logger.Debug("majsoul Oauth2Check.", zap.Reflect("resOauth2Check", resOauth2Check))
-		resLogin, err := majsoul.Oauth2Login(ctx, &message.ReqOauth2Login{
-			AccessToken: accessToken,
-			Device: &message.ClientDeviceInfo{
-				Platform:       "pc",
-				Hardware:       "pc",
-				Os:             "windows",
-				OsVersion:      "win10",
-				IsBrowser:      true,
-				Software:       "Chrome",
-				SalePlatform:   "web",
-				HardwareVendor: "",
-				ModelNumber:    "",
-				ScreenWidth:    uint32(rand.Int31n(400) + 914),
-				ScreenHeight:   uint32(rand.Int31n(200) + 1316),
-			},
-			Reconnect: false,
-			RandomKey: majsoul.UUID,
-			ClientVersion: &message.ClientVersionInfo{
-				Resource: majsoul.Version.Version,
-				Package:  "",
-			},
-			GenAccessToken:      false,
-			CurrencyPlatforms:   []uint32{2, 6, 8, 10, 11},
-			ClientVersionString: majsoul.Version.Web(),
-		})
-		if err != nil {
-			logger.Error("majsoul Oauth2Login error.", zap.Error(err))
-		}
-		logger.Debug("majsoul Oauth2Login.", zap.Reflect("resLogin", resLogin))
-	}
-	majsoul.onGameReconnectCallBreak = &callbreak
-}
+// func (majsoul *Majsoul) onGatewayReconnect(resLogin *message.ResLogin) {
+// 	callbreak := func(ctx context.Context) {
+// 		accessToken := resLogin.AccessToken
+// 		resOauth2Check, err := majsoul.Oauth2Check(ctx, &message.ReqOauth2Check{AccessToken: accessToken})
+// 		if err != nil {
+// 			logger.Error("majsoul Oauth2Check error.", zap.Error(err))
+// 		}
+// 		logger.Debug("majsoul Oauth2Check.", zap.Reflect("resOauth2Check", resOauth2Check))
+// 		resLogin, err := majsoul.Oauth2Login(ctx, &message.ReqOauth2Login{
+// 			AccessToken: accessToken,
+// 			Device: &message.ClientDeviceInfo{
+// 				Platform:       "pc",
+// 				Hardware:       "pc",
+// 				Os:             "windows",
+// 				OsVersion:      "win10",
+// 				IsBrowser:      true,
+// 				Software:       "Chrome",
+// 				SalePlatform:   "web",
+// 				HardwareVendor: "",
+// 				ModelNumber:    "",
+// 				ScreenWidth:    uint32(rand.Int31n(400) + 914),
+// 				ScreenHeight:   uint32(rand.Int31n(200) + 1316),
+// 			},
+// 			Reconnect: false,
+// 			RandomKey: majsoul.UUID,
+// 			ClientVersion: &message.ClientVersionInfo{
+// 				Resource: majsoul.Version.Version,
+// 				Package:  "",
+// 			},
+// 			GenAccessToken:      false,
+// 			CurrencyPlatforms:   []uint32{2, 6, 8, 10, 11},
+// 			ClientVersionString: majsoul.Version.Web(),
+// 		})
+// 		if err != nil {
+// 			logger.Error("majsoul Oauth2Login error.", zap.Error(err))
+// 		}
+// 		logger.Debug("majsoul Oauth2Login.", zap.Reflect("resLogin", resLogin))
+// 		majsoul.CloseFastTestClient()
+// 	}
+// 	majsoul.onGatewayReconnectCallBreak = callbreak
+// }
 
-func (majsoul *Majsoul) onGameReconnect(resLogin *message.ResLogin) {
-	callbreak := func(ctx context.Context) {
-		var err error
-		majsoul.GameInfo, err = majsoul.AuthGame(ctx, &message.ReqAuthGame{
-			AccountId: majsoul.Account.AccountId,
-			Token:     resLogin.GameInfo.ConnectToken,
-			GameUuid:  resLogin.GameInfo.GameUuid,
-		})
-		if err != nil {
-			logger.Error("majsoul AuthGame error.", zap.Error(err))
-			return
-		}
+// func (majsoul *Majsoul) onGameReconnect(resLogin *message.ResLogin) {
+// 	callbreak := func(ctx context.Context) {
+// 		var err error
+// 		majsoul.GameInfo, err = majsoul.AuthGame(ctx, &message.ReqAuthGame{
+// 			AccountId: majsoul.Account.AccountId,
+// 			Token:     resLogin.GameInfo.ConnectToken,
+// 			GameUuid:  resLogin.GameInfo.GameUuid,
+// 		})
+// 		if err != nil {
+// 			logger.Error("majsoul AuthGame error.", zap.Error(err))
+// 			return
+// 		}
 
-		if resSyncGame, err := majsoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
-			logger.Error("majsoul SyncGame error.", zap.Error(err))
-			return
-		} else {
-			logger.Debug("majsoul SyncGame.", zap.Reflect("resSyncGame", resSyncGame))
-		}
+// 		if resSyncGame, err := majsoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
+// 			logger.Error("majsoul SyncGame error.", zap.Error(err))
+// 			return
+// 		} else {
+// 			logger.Debug("majsoul SyncGame.", zap.Reflect("resSyncGame", resSyncGame))
+// 		}
 
-		if _, err := majsoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
-			logger.Error("majsoul FetchGamePlayerState error.", zap.Error(err))
-			return
-		} else {
-			logger.Debug("majsoul FetchGamePlayerState.")
-		}
+// 		if _, err := majsoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+// 			logger.Error("majsoul FetchGamePlayerState error.", zap.Error(err))
+// 			return
+// 		} else {
+// 			logger.Debug("majsoul FetchGamePlayerState.")
+// 		}
 
-		if _, err := majsoul.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
-			logger.Error("majsoul FinishSyncGame error.", zap.Error(err))
-			return
-		} else {
-			logger.Debug("majsoul FinishSyncGame.")
-		}
+// 		if _, err := majsoul.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
+// 			logger.Error("majsoul FinishSyncGame error.", zap.Error(err))
+// 			return
+// 		} else {
+// 			logger.Debug("majsoul FinishSyncGame.")
+// 		}
 
-		if _, err := majsoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
-			logger.Error("majsoul FetchGamePlayerState error.", zap.Error(err))
-			return
-		} else {
-			logger.Debug("majsoul FetchGamePlayerState.")
-		}
-	}
-	majsoul.onGatewayReconnectCallBreak = &callbreak
-}
+// 		if _, err := majsoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+// 			logger.Error("majsoul FetchGamePlayerState error.", zap.Error(err))
+// 			return
+// 		} else {
+// 			logger.Debug("majsoul FetchGamePlayerState.")
+// 		}
+// 	}
+// 	majsoul.onGameReconnectCallBreak = callbreak
+// }
 
 // Login 登录，这是一个额外实现，并不属于 proto 或者 GRPC 的定义中
 func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*message.ResLogin, error) {

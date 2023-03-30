@@ -40,7 +40,7 @@ type wsClient struct {
 	requestResponseMap sync.Map // map[uint8]*Reply
 	notify             chan proto.Message
 
-	reconnectHandler *func(ctx context.Context)
+	reconnectHandler func(ctx context.Context)
 }
 
 type Reply struct {
@@ -72,7 +72,7 @@ func (client *wsClient) getIsConnected() bool {
 	return atomic.LoadUint32(&client.isConnected) == 1
 }
 
-func (client *wsClient) OnReconnect(callbrak *func(ctx context.Context)) {
+func (client *wsClient) OnReconnect(callbrak func(ctx context.Context)) {
 	client.reconnectHandler = callbrak
 }
 
@@ -92,37 +92,37 @@ func (client *wsClient) Close() {
 	}
 }
 
-func (client *wsClient) reConnect(ctx context.Context) {
-	for {
-		if client.curReconnectNumber >= client.ReconnectNumber {
-			return
-		}
-		select {
-		case _, ok := <-client.close:
-			if !ok {
-				return
-			}
-		default:
-		}
-		client.curReconnectNumber++
-		time.Sleep(client.ReconnectInterval)
+// func (client *wsClient) reConnect(ctx context.Context) {
+// 	for {
+// 		if client.curReconnectNumber >= client.ReconnectNumber {
+// 			return
+// 		}
+// 		select {
+// 		case _, ok := <-client.close:
+// 			if !ok {
+// 				return
+// 			}
+// 		default:
+// 		}
+// 		client.curReconnectNumber++
+// 		time.Sleep(client.ReconnectInterval)
 
-		ctx, cancel := context.WithCancel(ctx)
-		defer cancel()
+// 		ctx, cancel := context.WithCancel(ctx)
+// 		defer cancel()
 
-		err := client.Connect(ctx)
-		if err != nil {
-			continue
-		}
+// 		err := client.Connect(ctx)
+// 		if err != nil {
+// 			continue
+// 		}
 
-		client.curReconnectNumber = 0
+// 		client.curReconnectNumber = 0
 
-		if client.reconnectHandler != nil {
-			(*client.reconnectHandler)(ctx)
-			return
-		}
-	}
-}
+// 		if client.reconnectHandler != nil {
+// 			client.reconnectHandler(ctx)
+// 			return
+// 		}
+// 	}
+// }
 
 func (client *wsClient) Connect(ctx context.Context) error {
 	select {
@@ -182,7 +182,7 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		if err := recover(); err != nil {
 			logger.Error("ws catch exception: ", zap.Any("err", err))
 			client.Close()
-			go client.reConnect(ctx)
+			// go client.reConnect(ctx)
 		}
 	}()
 
@@ -214,14 +214,15 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		}
 	}
 
-	select {
-	case <-ctx.Done():
-		client.Close()
-		return
-	default:
-		client.setIsConnected(false)
-		go client.reConnect(ctx)
-	}
+	// select {
+	// case <-ctx.Done():
+	// 	client.Close()
+	// 	return
+	// default:
+	// 	client.setIsConnected(false)
+	// 	go client.reConnect(ctx)
+	// }
+	client.Close()
 }
 
 func (client *wsClient) handleNotify(msg []byte) {
@@ -296,6 +297,9 @@ func (client *wsClient) Invoke(ctx context.Context, method string, in interface{
 }
 
 func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Message) (_ *Reply, err error) {
+	if !client.getIsConnected() {
+		return nil, websocket.CloseError{}
+	}
 	var body []byte
 
 	body, err = proto.Marshal(in)

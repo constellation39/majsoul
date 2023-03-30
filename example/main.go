@@ -495,12 +495,50 @@ func main() {
 		return
 	}
 
+	// 重连到正在进行对局的游戏中
 	if resLogin.Account != nil && resLogin.Account.AccountId != 0 {
-		err := client.ReConnGame(ctx, resLogin)
-		if err != nil {
-			logger.Error("majsoul ReConnGame error.", zap.Error(err))
+		if resLogin.Account == nil || resLogin.Account.RoomId == 0 {
 			return
 		}
+
+		if err := client.ConnGame(ctx); err != nil {
+			logger.Error("majsoul ConnGame error.", zap.Error(err))
+		}
+
+		var err error
+		client.GameInfo, err = client.AuthGame(ctx, &message.ReqAuthGame{
+			AccountId: client.Account.AccountId,
+			Token:     resLogin.GameInfo.ConnectToken,
+			GameUuid:  resLogin.GameInfo.GameUuid,
+		})
+		if err != nil {
+			logger.Error("majsoul AuthGame error.", zap.Error(err))
+		}
+
+		if resSyncGame, err := client.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
+			logger.Error("majsoul SyncGame error.", zap.Error(err))
+		} else {
+			logger.Debug("majsoul SyncGame.", zap.Reflect("resSyncGame", resSyncGame))
+		}
+
+		if _, err := client.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+			logger.Error("majsoul FetchGamePlayerState error.", zap.Error(err))
+		} else {
+			logger.Debug("majsoul FetchGamePlayerState.")
+		}
+
+		if _, err := client.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
+			logger.Error("majsoul FinishSyncGame error.", zap.Error(err))
+		} else {
+			logger.Debug("majsoul FinishSyncGame.")
+		}
+
+		if _, err := client.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+			logger.Error("majsoul FetchGamePlayerState error.", zap.Error(err))
+		} else {
+			logger.Debug("majsoul FetchGamePlayerState.")
+		}
+
 	}
 
 	<-ctx.Done()
