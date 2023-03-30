@@ -40,7 +40,7 @@ type wsClient struct {
 	requestResponseMap sync.Map // map[uint8]*Reply
 	notify             chan proto.Message
 
-	ReconnectHandler func(ctx context.Context)
+	reconnectHandler *func(ctx context.Context)
 }
 
 type Reply struct {
@@ -72,28 +72,37 @@ func (client *wsClient) getIsConnected() bool {
 	return atomic.LoadUint32(&client.isConnected) == 1
 }
 
-func (client *wsClient) Close() {
-	if client.conn != nil {
-		if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
-			logger.Error("ws failed to close websocket connection: ", zap.Error(err))
-		}
-	}
+func (client *wsClient) OnReconnect(callbrak *func(ctx context.Context)) {
+	client.reconnectHandler = callbrak
+}
 
+func (client *wsClient) Close() {
 	select {
 	case _, ok := <-client.close:
 		if ok {
 			close(client.close)
+			if client.conn != nil {
+				if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
+					logger.Error("ws failed to close websocket connection: ", zap.Error(err))
+				}
+			}
+			client.setIsConnected(false)
 		}
 	default:
 	}
-
-	client.setIsConnected(false)
 }
 
 func (client *wsClient) reConnect(ctx context.Context) {
 	for {
 		if client.curReconnectNumber >= client.ReconnectNumber {
-			break
+			return
+		}
+		select {
+		case _, ok := <-client.close:
+			if !ok {
+				return
+			}
+		default:
 		}
 		client.curReconnectNumber++
 		time.Sleep(client.ReconnectInterval)
@@ -108,8 +117,8 @@ func (client *wsClient) reConnect(ctx context.Context) {
 
 		client.curReconnectNumber = 0
 
-		if client.ReconnectHandler != nil {
-			client.ReconnectHandler(ctx)
+		if client.reconnectHandler != nil {
+			(*client.reconnectHandler)(ctx)
 			return
 		}
 	}
