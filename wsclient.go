@@ -22,11 +22,11 @@ import (
 )
 
 type wsConfig struct {
-	ConnAddress       string
-	ProxyAddress      string
-	RequestHeaders    http.Header
-	ReconnectInterval time.Duration
-	ReconnectNumber   int
+	ConnAddress    string
+	ProxyAddress   string
+	RequestHeaders http.Header
+	// ReconnectInterval time.Duration
+	// ReconnectNumber   int
 }
 
 type wsClient struct {
@@ -40,6 +40,7 @@ type wsClient struct {
 	requestResponseMap sync.Map // map[uint8]*Reply
 	notify             chan proto.Message
 
+	closeHandler     func()
 	reconnectHandler func(ctx context.Context)
 }
 
@@ -76,19 +77,22 @@ func (client *wsClient) OnReconnect(callbrak func(ctx context.Context)) {
 	client.reconnectHandler = callbrak
 }
 
+func (client *wsClient) OnClose(callbrak func()) {
+	client.closeHandler = callbrak
+}
+
 func (client *wsClient) Close() {
-	select {
-	case _, ok := <-client.close:
-		if ok {
-			close(client.close)
-			if client.conn != nil {
-				if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
-					logger.Error("ws failed to close websocket connection: ", zap.Error(err))
-				}
+	if client.getIsConnected() {
+		close(client.close)
+		client.setIsConnected(false)
+		if client.conn != nil {
+			if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
+				logger.Error("ws failed to close websocket connection: ", zap.Error(err))
 			}
-			client.setIsConnected(false)
 		}
-	default:
+		if client.closeHandler != nil {
+			client.closeHandler()
+		}
 	}
 }
 
@@ -125,11 +129,10 @@ func (client *wsClient) Close() {
 // }
 
 func (client *wsClient) Connect(ctx context.Context) error {
+	if !client.getIsConnected() {
+		return websocket.CloseError{}
+	}
 	select {
-	case _, ok := <-client.close:
-		if !ok {
-			logger.Panic("ws client is closed.")
-		}
 	case <-ctx.Done():
 		return ctx.Err()
 	default:

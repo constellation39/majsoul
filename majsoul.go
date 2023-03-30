@@ -83,8 +83,8 @@ type Config struct {
 	ServerProxy       string           // 代理服务器地址(https)请求时，可以为空，为空时不使用代理
 	GatewayProxy      string           // 代理网关服务器地址(wss)请求时，可以为空，为空时不使用代理
 	GameProxy         string           // 代理游戏服务器地址(wss)请求时，可以为空，为空时不使用代理
-	ReconnectInterval time.Duration    // 重连间隔时间
-	ReconnectNumber   int              // 重连次数，当重连次数达到该值时, ws 连接不再尝试重连
+	// ReconnectInterval time.Duration    // 重连间隔时间
+	// ReconnectNumber   int              // 重连次数，当重连次数达到该值时, ws 连接不再尝试重连
 }
 
 type ConfigOption func(*Config)
@@ -117,12 +117,12 @@ func WithGameProxy(proxyAddress string) ConfigOption {
 	}
 }
 
-func WithReconnect(number int, interval time.Duration) ConfigOption {
-	return func(config *Config) {
-		config.ReconnectNumber = number
-		config.ReconnectInterval = interval
-	}
-}
+// func WithReconnect(number int, interval time.Duration) ConfigOption {
+// 	return func(config *Config) {
+// 		config.ReconnectNumber = number
+// 		config.ReconnectInterval = interval
+// 	}
+// }
 
 // Majsoul majsoul wsClient
 type Majsoul struct {
@@ -139,6 +139,8 @@ type Majsoul struct {
 	Account                *message.Account     // 该字段应在登录成功后访问
 	GameInfo               *message.ResAuthGame // 该字段应在进入游戏桌面后访问
 
+	onGatewayCloseCallBreak func()
+	onGameCloseCallBreak    func()
 	// onGatewayReconnectCallBreak func(ctx context.Context)
 	// onGameReconnectCallBreak    func(ctx context.Context)
 }
@@ -177,14 +179,15 @@ func New(ctx context.Context, configOptions ...ConfigOption) (majsoul *Majsoul, 
 
 func (majsoul *Majsoul) setLobbyClient(client *wsClient) {
 	if majsoul.lobbyConn != nil {
-		majsoul.CloseLobbyClient()
+		majsoul.closeLobbyClient()
 	}
+	client.OnClose(majsoul.closeLobbyClient)
 	// client.OnReconnect(majsoul.onGatewayReconnectCallBreak)
 	majsoul.lobbyConn = client
 	majsoul.LobbyClient = message.NewLobbyClient(client)
 }
 
-func (majsoul *Majsoul) CloseLobbyClient() {
+func (majsoul *Majsoul) closeLobbyClient() {
 	if majsoul.lobbyConn != nil {
 		majsoul.lobbyConn.Close()
 		majsoul.lobbyConn = nil
@@ -196,14 +199,15 @@ func (majsoul *Majsoul) CloseLobbyClient() {
 
 func (majsoul *Majsoul) setFastTestClient(client *wsClient) {
 	if majsoul.fastTestConn != nil {
-		majsoul.CloseFastTestClient()
+		majsoul.closeFastTestClient()
 	}
+	client.OnClose(majsoul.closeFastTestClient)
 	// client.OnReconnect(majsoul.onGameReconnectCallBreak)
 	majsoul.fastTestConn = client
 	majsoul.FastTestClient = message.NewFastTestClient(client)
 }
 
-func (majsoul *Majsoul) CloseFastTestClient() {
+func (majsoul *Majsoul) closeFastTestClient() {
 	if majsoul.fastTestConn != nil {
 		majsoul.fastTestConn.Close()
 		majsoul.fastTestConn = nil
@@ -249,11 +253,11 @@ func (majsoul *Majsoul) tryNew(ctx context.Context) (err error) {
 			continue
 		}
 		client := newWsClient(&wsConfig{
-			ConnAddress:       serverAddress.GatewayAddress,
-			ProxyAddress:      majsoul.Config.GatewayProxy,
-			RequestHeaders:    header,
-			ReconnectInterval: majsoul.Config.ReconnectInterval,
-			ReconnectNumber:   majsoul.Config.ReconnectNumber,
+			ConnAddress:    serverAddress.GatewayAddress,
+			ProxyAddress:   majsoul.Config.GatewayProxy,
+			RequestHeaders: header,
+			// ReconnectInterval: majsoul.Config.ReconnectInterval,
+			// ReconnectNumber:   majsoul.Config.ReconnectNumber,
 		})
 		err = client.Connect(ctx)
 		if err != nil {
@@ -269,8 +273,8 @@ func (majsoul *Majsoul) tryNew(ctx context.Context) (err error) {
 }
 
 func (majsoul *Majsoul) Close() {
-	majsoul.CloseFastTestClient()
-	majsoul.CloseLobbyClient()
+	majsoul.closeFastTestClient()
+	majsoul.closeLobbyClient()
 }
 
 // initVersion 获取版本
@@ -296,11 +300,11 @@ func (majsoul *Majsoul) ConnGame(ctx context.Context) (err error) {
 	header.Add("User-Agent", UserAgent)
 
 	clinet := newWsClient(&wsConfig{
-		ConnAddress:       majsoul.ServerAddress.GameAddress,
-		ProxyAddress:      majsoul.Config.GameProxy,
-		RequestHeaders:    header,
-		ReconnectInterval: majsoul.Config.ReconnectInterval,
-		ReconnectNumber:   majsoul.Config.ReconnectNumber,
+		ConnAddress:    majsoul.ServerAddress.GameAddress,
+		ProxyAddress:   majsoul.Config.GameProxy,
+		RequestHeaders: header,
+		// ReconnectInterval: majsoul.Config.ReconnectInterval,
+		// ReconnectNumber:   majsoul.Config.ReconnectNumber,
 	})
 	err = clinet.Connect(ctx)
 	if err != nil {
@@ -731,7 +735,7 @@ func hashPassword(data string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func ErrorCode(err *message.Error) (msg string) {
+func ErrorString(err *message.Error) (msg string) {
 	switch err.Code {
 	case 0:
 		msg = ""
@@ -838,6 +842,20 @@ func ErrorCode(err *message.Error) (msg string) {
 // 	}
 // 	majsoul.onGameReconnectCallBreak = callbreak
 // }
+
+func (majsoul *Majsoul) OnGatewayClose(callbrak func()) {
+	majsoul.onGatewayCloseCallBreak = callbrak
+	if majsoul.lobbyConn != nil {
+		majsoul.lobbyConn.OnClose(callbrak)
+	}
+}
+
+func (majsoul *Majsoul) OnGameClose(callbrak func()) {
+	majsoul.onGameCloseCallBreak = callbrak
+	if majsoul.fastTestConn != nil {
+		majsoul.fastTestConn.OnClose(callbrak)
+	}
+}
 
 // Login 登录，这是一个额外实现，并不属于 proto 或者 GRPC 的定义中
 func (majsoul *Majsoul) Login(ctx context.Context, account, password string) (*message.ResLogin, error) {

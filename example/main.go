@@ -24,7 +24,7 @@ type Majsoul struct {
 
 func NewMajSoul(ctx context.Context) (*Majsoul, error) {
 	// 初始化一个客户端
-	subClient, err := majsoul.New(ctx, majsoul.WithReconnect(99, time.Second*3))
+	subClient, err := majsoul.New(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -485,22 +485,20 @@ func main() {
 		return
 	}
 	if resLogin.Error != nil && resLogin.Error.Code != 0 {
-		logger.Error("majsoul Login error.", zap.Uint32("Code", resLogin.Error.Code))
+		errorString := majsoul.ErrorString(resLogin.Error)
+		logger.Error("majsoul Login error.", zap.Uint32("Code", resLogin.Error.Code), zap.String("errorString", errorString))
 		return
 	}
 	logger.Info("majsoul Login.", zap.Reflect("resLogin", resLogin))
 
 	err = UpdateLoginInfo(ctx, client)
 	if err != nil {
+		logger.Error("UpdateLoginInfo error.", zap.Error(err))
 		return
 	}
 
 	// 重连到正在进行对局的游戏中
-	if resLogin.Account != nil && resLogin.Account.AccountId != 0 {
-		if resLogin.Account == nil || resLogin.Account.RoomId == 0 {
-			return
-		}
-
+	if resLogin.Account != nil && resLogin.Account.RoomId != 0 {
 		if err := client.ConnGame(ctx); err != nil {
 			logger.Error("majsoul ConnGame error.", zap.Error(err))
 		}
@@ -538,8 +536,15 @@ func main() {
 		} else {
 			logger.Debug("majsoul FetchGamePlayerState.")
 		}
-
 	}
+
+	client.OnGatewayClose(func() {
+		logger.Panic("majsoul gateway close")
+	})
+
+	client.OnGameClose(func() {
+		logger.Panic("majsoul game close")
+	})
 
 	<-ctx.Done()
 }
