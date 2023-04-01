@@ -13,8 +13,10 @@ import (
 )
 
 var (
-	account  = flag.String("account", "", "majsoul login when the account(email or mobile number).")
-	password = flag.String("password", "", "majsoul login when the password.")
+	account      = flag.String("account", "", "majsoul login when the account(email or mobile number).")
+	password     = flag.String("password", "", "majsoul login when the password.")
+	gatewayProxy = flag.String("gatewayProxy", "", "majsoul connect gateway when the proxy.")
+	gameProxy    = flag.String("gameProxy", "", "majsoul connect game when the proxy.")
 )
 
 type Majsoul struct {
@@ -23,8 +25,18 @@ type Majsoul struct {
 }
 
 func NewMajSoul(ctx context.Context) (*Majsoul, error) {
+	configOptions := make([]majsoul.ConfigOption, 0, 2)
+
+	if len(*gatewayProxy) > 0 {
+		configOptions = append(configOptions, majsoul.WithGatewayProxy(*gatewayProxy))
+	}
+
+	if len(*gameProxy) > 0 {
+		configOptions = append(configOptions, majsoul.WithGameProxy(*gameProxy))
+	}
+
 	// 初始化一个客户端
-	subClient, err := majsoul.New(ctx)
+	subClient, err := majsoul.New(ctx, configOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +482,8 @@ func main() {
 		return
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	client, err := NewMajSoul(ctx)
 	if err != nil {
 		logger.Error("majsoul client is not created.", zap.Error(err))
@@ -539,10 +552,12 @@ func main() {
 	}
 
 	client.OnGatewayClose(func() {
+		cancel()
 		logger.Panic("majsoul gateway close")
 	})
 
 	client.OnGameClose(func() {
+		cancel()
 		logger.Panic("majsoul game close")
 	})
 
