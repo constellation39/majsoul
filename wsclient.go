@@ -181,7 +181,7 @@ func (client *wsClient) readLoop(ctx context.Context) {
 
 		msgType, payload, err := client.conn.Read(ctx)
 		if err != nil {
-			logger.Error("majsoul ws read: ", zap.String("connAddress", client.ConnAddress), zap.String("proxyAddress", client.ProxyAddress), zap.Error(err))
+			logger.Debug("majsoul ws read: ", zap.String("connAddress", client.ConnAddress), zap.String("proxyAddress", client.ProxyAddress), zap.Error(err))
 			break
 		}
 		if msgType != websocket.MessageBinary {
