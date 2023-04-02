@@ -15,7 +15,7 @@ import (
 var (
 	account      = flag.String("account", "", "majsoul login when the account(email or mobile number).")
 	password     = flag.String("password", "", "majsoul login when the password.")
-	serverProxy  = flag.String("gatewayProxy", "", "majsoul request server when the proxy.")
+	serverProxy  = flag.String("serverProxy", "", "majsoul request server when the proxy.")
 	gatewayProxy = flag.String("gatewayProxy", "", "majsoul connect gateway when the proxy.")
 	gameProxy    = flag.String("gameProxy", "", "majsoul connect game when the proxy.")
 )
@@ -41,10 +41,12 @@ func NewMajSoul(ctx context.Context) (*Majsoul, error) {
 	}
 
 	// 初始化一个客户端
-	subClient, err := majsoul.New(ctx, configOptions...)
-	if err != nil {
+	subClient := majsoul.New(configOptions...)
+
+	if err := subClient.TryConnect(ctx, majsoul.ServerAddressList); err != nil {
 		return nil, err
 	}
+
 	client := &Majsoul{Majsoul: subClient}
 	// Majsoul 是一个处理麻将游戏逻辑的结构体。要使用它，请先创建一个 Majsoul 对象，
 	// 需要监听雀魂服务器下发通知时，需要实现这个接口 majsoul.Implement
@@ -64,7 +66,7 @@ func (mSoul *Majsoul) NotifyClientMessage(ctx context.Context, notify *message.N
 		DoraCount    int  `json:"dora_count"`
 		Shiduan      int  `json:"shiduan"`
 		InitPoint    int  `json:"init_point"`
-		Fandian      int  `json:"fandian"`
+		Fandian      int  `json@:"fandian"`
 		Bianjietishi bool `json:"bianjietishi"`
 		AiLevel      int  `json:"ai_level"`
 		Fanfu        int  `json:"fanfu"`

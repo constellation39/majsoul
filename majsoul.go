@@ -36,23 +36,12 @@ type Implement interface {
 }
 
 type Config struct {
-	ServerAddressList []*ServerAddress // 服务器的可选列表，可以为空，为空时会自动获取
-	ServerProxy       string           // 代理服务器地址(https)请求时，可以为空，为空时不使用代理
-	GatewayProxy      string           // 代理网关服务器地址(wss)请求时，可以为空，为空时不使用代理
-	GameProxy         string           // 代理游戏服务器地址(wss)请求时，可以为空，为空时不使用代理
+	ServerProxy  string // 代理服务器地址(https)请求时，可以为空，为空时不使用代理
+	GatewayProxy string // 代理网关服务器地址(wss)请求时，可以为空，为空时不使用代理
+	GameProxy    string // 代理游戏服务器地址(wss)请求时，可以为空，为空时不使用代理
 }
 
 type ConfigOption func(*Config)
-
-func WithServerAddressList(serverAddressList []*ServerAddress) ConfigOption {
-	return func(config *Config) {
-		if len(serverAddressList) == 0 {
-			logger.Error("majsoul serverAddressList is empty.")
-			return
-		}
-		config.ServerAddressList = serverAddressList
-	}
-}
 
 func WithServerProxy(proxyAddress string) ConfigOption {
 	return func(config *Config) {
@@ -95,35 +84,19 @@ type Majsoul struct {
 }
 
 // Majsoul 是一个处理麻将游戏逻辑的结构体。要使用它，请先创建一个 Majsoul 对象，
-func New(ctx context.Context, configOptions ...ConfigOption) (majsoul *Majsoul, err error) {
+func New(configOptions ...ConfigOption) *Majsoul {
 	config := &Config{}
 
 	for _, configOption := range configOptions {
 		configOption(config)
 	}
 
-	majsoul = &Majsoul{
+	majsoul := &Majsoul{
 		Config: config,
 		UUID:   uuid(),
 	}
 
-	if len(config.ServerAddressList) == 0 {
-		config.ServerAddressList = ServerAddressList
-	}
-
-	err = majsoul.tryNew(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	err = majsoul.initVersion(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	go majsoul.heatbeat(ctx)
-	go majsoul.receiveConn(ctx)
-	return majsoul, nil
+	return majsoul
 }
 
 func (majsoul *Majsoul) setLobbyClient(client *wsClient) {
@@ -171,9 +144,9 @@ func (majsoul *Majsoul) Implement(implement Implement) {
 	majsoul.implement = implement
 }
 
-// tryNew 尝试寻找可以使用的服务器
-func (majsoul *Majsoul) tryNew(ctx context.Context) (err error) {
-	for _, serverAddress := range majsoul.Config.ServerAddressList {
+// TryConnect 尝试寻找可以使用的服务器
+func (majsoul *Majsoul) TryConnect(ctx context.Context, ServerAddressList []*ServerAddress) (err error) {
+	for _, serverAddress := range ServerAddressList {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -217,6 +190,16 @@ func (majsoul *Majsoul) tryNew(ctx context.Context) (err error) {
 		majsoul.ServerAddress = serverAddress
 		majsoul.Request = r
 		majsoul.setLobbyClient(client)
+
+		err = majsoul.initVersion(ctx)
+		if err != nil {
+			logger.Debug("majsoul init version failed.", zap.Reflect("serverAddress", serverAddress), zap.Reflect("config", majsoul.Config), zap.Error(err))
+			continue
+		}
+
+		go majsoul.heatbeat(ctx)
+		go majsoul.receiveConn(ctx)
+
 		return nil
 	}
 	return ErrorNoServerAvailable
