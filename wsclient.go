@@ -90,7 +90,7 @@ func (client *wsClient) Close() {
 		client.setIsConnected(false)
 		if client.conn != nil {
 			if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
-				logger.Error("ws failed to close websocket connection: ", zap.Error(err))
+				logger.Error("majsoul ws failed to close websocket connection: ", zap.Error(err))
 			}
 		}
 		if client.closeHandler != nil {
@@ -132,7 +132,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		logger.Error("ws failed to create cookie jar: ", zap.Error(err))
+		logger.Error("majsoul ws failed to create cookie jar: ", zap.Error(err))
 	}
 
 	httpClient := &http.Client{
@@ -163,7 +163,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 
 	conn.SetReadLimit(1048576)
 	client.conn = conn
-	logger.Debug("ws connect success:", zap.String("connAddress", client.ConnAddress))
+	logger.Debug("majsoul ws connect success:", zap.String("connAddress", client.ConnAddress))
 	client.setIsConnected(true)
 
 	go client.readLoop(ctx)
@@ -181,16 +181,16 @@ func (client *wsClient) readLoop(ctx context.Context) {
 
 		msgType, payload, err := client.conn.Read(ctx)
 		if err != nil {
-			logger.Error("ws read: ", zap.String("connAddress", client.ConnAddress), zap.String("proxyAddress", client.ProxyAddress), zap.Error(err))
+			logger.Error("majsoul ws read: ", zap.String("connAddress", client.ConnAddress), zap.String("proxyAddress", client.ProxyAddress), zap.Error(err))
 			break
 		}
 		if msgType != websocket.MessageBinary {
-			logger.Info("ws unsupported message types: ", zap.Int("t", int(msgType)))
+			logger.Info("majsoul ws unsupported message types: ", zap.Int("t", int(msgType)))
 			continue
 		}
 
 		if len(payload) == 0 {
-			logger.Error("ws read message length is zero: ")
+			logger.Error("majsoul ws read message length is zero: ")
 			continue
 		}
 
@@ -200,7 +200,7 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		case MsgTypeResponse:
 			client.handleResponse(payload)
 		default:
-			logger.Info("ws unknown message types: ", zap.Uint8("value", payload[0]))
+			logger.Info("majsoul ws unknown message types: ", zap.Uint8("value", payload[0]))
 		}
 	}
 
@@ -219,19 +219,19 @@ func (client *wsClient) handleNotify(msg []byte) {
 
 	err := proto.Unmarshal(msg[1:], wrapper)
 	if err != nil {
-		logger.Error("ws notify messages unmarshal error: ", zap.Error(err))
+		logger.Error("majsoul ws notify messages unmarshal error: ", zap.Error(err))
 		return
 	}
 
 	notifyMessage := message.GetNotifyType(wrapper.Name)
 	if notifyMessage == nil {
-		logger.Error("ws unknown notify type: ", zap.String("name", wrapper.Name))
+		logger.Error("majsoul ws unknown notify type: ", zap.String("name", wrapper.Name))
 		return
 	}
 
 	err = proto.Unmarshal(wrapper.Data, notifyMessage)
 	if err != nil {
-		logger.Error("ws notify type unmarshal error: ", zap.Reflect("notify type", notifyMessage), zap.Error(err))
+		logger.Error("majsoul ws notify type unmarshal error: ", zap.Reflect("notify type", notifyMessage), zap.Error(err))
 		return
 	}
 

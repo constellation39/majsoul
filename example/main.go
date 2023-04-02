@@ -159,6 +159,11 @@ func (mSoul *Majsoul) ActionDealTile(ctx context.Context, action *message.Action
 		return
 	}
 
+	if len(action.Tile) == 0 {
+		logger.Error("摸牌是空的")
+		return
+	}
+
 	time.Sleep(time.Second * 3)
 	_, err := mSoul.InputOperation(ctx, &message.ReqSelfOperation{
 		Type:    majsoul.ActionDiscard,
