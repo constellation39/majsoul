@@ -894,6 +894,14 @@ func (majsoul *Majsoul) onGameReconnect(ctx context.Context) {
 	}
 
 	if majsoul.onGameReconnectCallBack != nil {
+		// 这里没有加密
+		// if resSyncGame.GameRestore != nil {
+		// 	if resSyncGame.GameRestore.Actions != nil {
+		// 		for _, action := range resSyncGame.GameRestore.Actions {
+		// 			DecodeActionPrototype(action)
+		// 		}
+		// 	}
+		// }
 		majsoul.onGameReconnectCallBack(ctx, resSyncGame)
 	}
 }

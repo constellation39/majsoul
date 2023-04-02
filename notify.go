@@ -373,17 +373,25 @@ func (majsoul *Majsoul) PlayerLeaving(ctx context.Context, notify *message.Playe
 
 var keys = []int{0x84, 0x5e, 0x4e, 0x42, 0x39, 0xa2, 0x1f, 0x60, 0x1c}
 
-func (majsoul *Majsoul) DecodeActionPrototype(notify *message.ActionPrototype) {
+func DecodeActionPrototype(notify *message.ActionPrototype) {
 	for i := 0; i < len(notify.Data); i++ {
 		u := (23 ^ len(notify.Data)) + 5*i + keys[i%len(keys)]&255
 		notify.Data[i] ^= byte(u)
 	}
 }
 
-func (majsoul *Majsoul) ActionPrototype(ctx context.Context, notify *message.ActionPrototype) {
+func ActionFromActionPrototype(notify *message.ActionPrototype) (interface{}, error) {
 	actionMessage := message.GetActionType(notify.Name)
-	majsoul.DecodeActionPrototype(notify)
 	err := proto.Unmarshal(notify.Data, actionMessage)
+	if err != nil {
+		return nil, err
+	}
+	return actionMessage, nil
+}
+
+func (majsoul *Majsoul) ActionPrototype(ctx context.Context, notify *message.ActionPrototype) {
+	DecodeActionPrototype(notify)
+	actionMessage, err := ActionFromActionPrototype(notify)
 	if err != nil {
 		logger.Error("ActionPrototype Unmarshal notify data failed: ", zap.Error(err), zap.Reflect("notify", notify), zap.Binary("data", notify.Data))
 		return

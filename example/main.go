@@ -513,6 +513,13 @@ func main() {
 			logger.Error("client AuthGame error.", zap.Error(err))
 		}
 
+		for i, uid := range client.GameInfo.SeatList {
+			if uid == client.Account.AccountId {
+				client.seat = uint32(i)
+				break
+			}
+		}
+
 		if resSyncGame, err := client.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
 			logger.Error("client SyncGame error.", zap.Error(err))
 		} else {
@@ -538,7 +545,11 @@ func main() {
 		}
 	}
 
-	client.OnGameReconnect(func(ctx context.Context, rsg *message.ResSyncGame) {
+	client.OnGameReconnect(func(ctx context.Context, resSyncGame *message.ResSyncGame) {
+		if client.GameInfo == nil {
+			logger.Error("client.GameInfo is nil.")
+			return
+		}
 		for i, uid := range client.GameInfo.SeatList {
 			if uid == client.Account.AccountId {
 				client.seat = uint32(i)
@@ -546,7 +557,23 @@ func main() {
 			}
 		}
 
-		logger.Debug("client OnGameReconnect.", zap.Reflect("rsg", rsg))
+		if resSyncGame.GameRestore == nil {
+			return
+		}
+
+		if resSyncGame.GameRestore.Actions == nil {
+			return
+		}
+
+		for _, action := range resSyncGame.GameRestore.Actions {
+			actionMessage, err := majsoul.ActionFromActionPrototype(action)
+			if err != nil {
+				logger.Debug("client ActionFromActionPrototype error", zap.Error(err))
+				continue
+			}
+			logger.Debug("client resSyncGame aciton", zap.Reflect("actionMessage", actionMessage))
+		}
+
 	})
 
 	<-ctx.Done()
