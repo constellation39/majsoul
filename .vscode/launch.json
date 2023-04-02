@@ -14,11 +14,7 @@
                 "--account",
                 "${input:account}",
                 "--password",
-                "${input:password}",
-                "--gatewayProxy",
-                "http://127.0.0.1:10808",
-                "--gameProxy",
-                "http://127.0.0.1:10808"
+                "${input:password}"
             ],
         }
     ],
