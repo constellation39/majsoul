@@ -15,6 +15,7 @@ import (
 var (
 	account      = flag.String("account", "", "majsoul login when the account(email or mobile number).")
 	password     = flag.String("password", "", "majsoul login when the password.")
+	serverProxy  = flag.String("gatewayProxy", "", "majsoul request server when the proxy.")
 	gatewayProxy = flag.String("gatewayProxy", "", "majsoul connect gateway when the proxy.")
 	gameProxy    = flag.String("gameProxy", "", "majsoul connect game when the proxy.")
 )
@@ -26,6 +27,10 @@ type Majsoul struct {
 
 func NewMajSoul(ctx context.Context) (*Majsoul, error) {
 	configOptions := make([]majsoul.ConfigOption, 0, 2)
+
+	if len(*serverProxy) > 0 {
+		configOptions = append(configOptions, majsoul.WithServerProxy(*serverProxy))
+	}
 
 	if len(*gatewayProxy) > 0 {
 		configOptions = append(configOptions, majsoul.WithGatewayProxy(*gatewayProxy))
