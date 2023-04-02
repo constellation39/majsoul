@@ -89,6 +89,9 @@ type Majsoul struct {
 	accessToken            string               // 验证身份时使用 的 token
 	connectToken           string               // 重连时使用的 token
 	gameUuid               string               // 是否在游戏中
+
+	onGatewayReconnectCallBack func(context.Context, *message.ResLogin)
+	onGameReconnectCallBack    func(context.Context, *message.ResSyncGame)
 }
 
 // Majsoul 是一个处理麻将游戏逻辑的结构体。要使用它，请先创建一个 Majsoul 对象，
@@ -355,7 +358,8 @@ func (majsoul *Majsoul) heatbeat(ctx context.Context) {
 			_, err := majsoul.Heatbeat(ctx, &message.ReqHeatBeat{})
 			if err != nil {
 				logger.Error("majsoul heatbeat error:", zap.Error(err))
-				return
+				time.Sleep(time.Second)
+				continue
 			}
 		case <-t2.C:
 			if majsoul.fastTestConn == nil {
@@ -364,7 +368,8 @@ func (majsoul *Majsoul) heatbeat(ctx context.Context) {
 			_, err := majsoul.CheckNetworkDelay(ctx, &message.ReqCommon{})
 			if err != nil {
 				logger.Error("majsoul checkNetworkDelay error:", zap.Error(err))
-				return
+				time.Sleep(time.Second)
+				continue
 			}
 		}
 	}
@@ -784,6 +789,10 @@ func ErrorString(err *message.Error) (msg string) {
 	return
 }
 
+func (majsoul *Majsoul) OnGatewayReconnect(callback func(context.Context, *message.ResLogin)) {
+	majsoul.onGatewayReconnectCallBack = callback
+}
+
 // onGatewayReconnect 断线重连
 // 这个callbreak内应该先与服务器进行验权，在进行接下来的交互
 // 拥有一个默认实现
@@ -826,6 +835,13 @@ func (majsoul *Majsoul) onGatewayReconnect(ctx context.Context) {
 		logger.Error("majsoul Oauth2Login error.", zap.Error(err))
 	}
 	logger.Debug("majsoul Oauth2Login.", zap.Reflect("resLogin", resLogin))
+	if majsoul.onGatewayReconnectCallBack != nil {
+		majsoul.onGatewayReconnectCallBack(ctx, resLogin)
+	}
+}
+
+func (majsoul *Majsoul) OnGameReconnect(callback func(context.Context, *message.ResSyncGame)) {
+	majsoul.onGameReconnectCallBack = callback
 }
 
 func (majsoul *Majsoul) onGameReconnect(ctx context.Context) {
@@ -848,7 +864,8 @@ func (majsoul *Majsoul) onGameReconnect(ctx context.Context) {
 		return
 	}
 
-	if resSyncGame, err := majsoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
+	resSyncGame, err := majsoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"})
+	if err != nil {
 		logger.Error("majsoul SyncGame error.", zap.Error(err))
 		return
 	} else {
@@ -874,6 +891,10 @@ func (majsoul *Majsoul) onGameReconnect(ctx context.Context) {
 		return
 	} else {
 		logger.Debug("majsoul FetchGamePlayerState.")
+	}
+
+	if majsoul.onGameReconnectCallBack != nil {
+		majsoul.onGameReconnectCallBack(ctx, resSyncGame)
 	}
 }
 

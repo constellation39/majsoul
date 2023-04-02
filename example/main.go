@@ -250,207 +250,207 @@ func (mSoul *Majsoul) ActionNoTile(ctx context.Context, action *message.ActionNo
 func UpdateLoginInfo(ctx context.Context, client *Majsoul) error {
 	resFetchLastPrivacy, err := client.FetchLastPrivacy(ctx, &message.ReqFetchLastPrivacy{})
 	if err != nil {
-		logger.Error("majsoul FetchLastPrivacy error.", zap.Error(err))
+		logger.Error("client FetchLastPrivacy error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchLastPrivacy.", zap.Reflect("resFetchLastPrivacy", resFetchLastPrivacy))
+	logger.Info("client FetchLastPrivacy.", zap.Reflect("resFetchLastPrivacy", resFetchLastPrivacy))
 
 	resFetchServerTime, err := client.FetchServerTime(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchServerTime error.", zap.Error(err))
+		logger.Error("client FetchServerTime error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchServerTime.", zap.Reflect("resFetchServerTime", resFetchServerTime))
+	logger.Info("client FetchServerTime.", zap.Reflect("resFetchServerTime", resFetchServerTime))
 
 	resServerSettings, err := client.FetchServerSettings(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchServerSettings error.", zap.Error(err))
+		logger.Error("client FetchServerSettings error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchServerSettings.", zap.Reflect("resServerSettings", resServerSettings))
+	logger.Info("client FetchServerSettings.", zap.Reflect("resServerSettings", resServerSettings))
 
 	resConnectionInfo, err := client.FetchConnectionInfo(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchConnectionInfo error.", zap.Error(err))
+		logger.Error("client FetchConnectionInfo error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchConnectionInfo.", zap.Reflect("resConnectionInfo", resConnectionInfo))
+	logger.Info("client FetchConnectionInfo.", zap.Reflect("resConnectionInfo", resConnectionInfo))
 
 	resClientValue, err := client.FetchClientValue(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchClientValue error.", zap.Error(err))
+		logger.Error("client FetchClientValue error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchClientValue.", zap.Reflect("resClientValue", resClientValue))
+	logger.Info("client FetchClientValue.", zap.Reflect("resClientValue", resClientValue))
 
 	resFriendList, err := client.FetchFriendList(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchFriendList error.", zap.Error(err))
+		logger.Error("client FetchFriendList error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchFriendList.", zap.Reflect("resFriendList", resFriendList))
+	logger.Info("client FetchFriendList.", zap.Reflect("resFriendList", resFriendList))
 
 	resFriendApplyList, err := client.FetchFriendApplyList(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchFriendApplyList error.", zap.Error(err))
+		logger.Error("client FetchFriendApplyList error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchFriendApplyList.", zap.Reflect("resFriendApplyList", resFriendApplyList))
+	logger.Info("client FetchFriendApplyList.", zap.Reflect("resFriendApplyList", resFriendApplyList))
 
 	resFetchrecentFriend, err := client.FetchRecentFriend(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchRecentFriend.", zap.Error(err))
+		logger.Error("client FetchRecentFriend.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchRecentFriend.", zap.Reflect("resFetchrecentFriend", resFetchrecentFriend))
+	logger.Info("client FetchRecentFriend.", zap.Reflect("resFetchrecentFriend", resFetchrecentFriend))
 
 	resMailInfo, err := client.FetchMailInfo(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchMailInfo error.", zap.Error(err))
+		logger.Error("client FetchMailInfo error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchMailInfo.", zap.Reflect("resMailInfo", resMailInfo))
+	logger.Info("client FetchMailInfo.", zap.Reflect("resMailInfo", resMailInfo))
 
 	resDailyTask, err := client.FetchDailyTask(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchDailyTask error.", zap.Error(err))
+		logger.Error("client FetchDailyTask error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchDailyTask.", zap.Reflect("resDailyTask", resDailyTask))
+	logger.Info("client FetchDailyTask.", zap.Reflect("resDailyTask", resDailyTask))
 
 	resReviveCoinInfo, err := client.FetchReviveCoinInfo(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchReviveCoinInfo error.", zap.Error(err))
+		logger.Error("client FetchReviveCoinInfo error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchReviveCoinInfo.", zap.Reflect("resReviveCoinInfo", resReviveCoinInfo))
+	logger.Info("client FetchReviveCoinInfo.", zap.Reflect("resReviveCoinInfo", resReviveCoinInfo))
 
 	resTitleList, err := client.FetchTitleList(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchTitleList error.", zap.Error(err))
+		logger.Error("client FetchTitleList error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchTitleList.", zap.Reflect("resTitleList", resTitleList))
+	logger.Info("client FetchTitleList.", zap.Reflect("resTitleList", resTitleList))
 
 	resBagInfo, err := client.FetchBagInfo(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchBagInfo error.", zap.Error(err))
+		logger.Error("client FetchBagInfo error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchBagInfo.", zap.Reflect("resBagInfo", resBagInfo))
+	logger.Info("client FetchBagInfo.", zap.Reflect("resBagInfo", resBagInfo))
 
 	resShopInfo, err := client.FetchShopInfo(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchShopInfo error.", zap.Error(err))
+		logger.Error("client FetchShopInfo error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchShopInfo.", zap.Reflect("resShopInfo", resShopInfo))
+	logger.Info("client FetchShopInfo.", zap.Reflect("resShopInfo", resShopInfo))
 
 	resFetchShopInterval, err := client.FetchShopInterval(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchShopInterval error.", zap.Error(err))
+		logger.Error("client FetchShopInterval error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchShopInterval.", zap.Reflect("resFetchShopInterval", resFetchShopInterval))
+	logger.Info("client FetchShopInterval.", zap.Reflect("resFetchShopInterval", resFetchShopInterval))
 
 	resActivityList, err := client.FetchActivityList(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchActivityList error.", zap.Error(err))
+		logger.Error("client FetchActivityList error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchActivityList.", zap.Reflect("resActivityList", resActivityList))
+	logger.Info("client FetchActivityList.", zap.Reflect("resActivityList", resActivityList))
 
 	resAccountActivityData, err := client.FetchAccountActivityData(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchAccountActivityData error.", zap.Error(err))
+		logger.Error("client FetchAccountActivityData error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchAccountActivityData.", zap.Reflect("resAccountActivityData", resAccountActivityData))
+	logger.Info("client FetchAccountActivityData.", zap.Reflect("resAccountActivityData", resAccountActivityData))
 
 	resFetchActivityInterval, err := client.FetchActivityInterval(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchActivityInterval error.", zap.Error(err))
+		logger.Error("client FetchActivityInterval error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchActivityInterval.", zap.Reflect("resFetchActivityInterval", resFetchActivityInterval))
+	logger.Info("client FetchActivityInterval.", zap.Reflect("resFetchActivityInterval", resFetchActivityInterval))
 
 	resActivityBuff, err := client.FetchActivityBuff(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchActivityBuff error.", zap.Error(err))
+		logger.Error("client FetchActivityBuff error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchActivityBuff.", zap.Reflect("resActivityBuff", resActivityBuff))
+	logger.Info("client FetchActivityBuff.", zap.Reflect("resActivityBuff", resActivityBuff))
 
 	resVipReward, err := client.FetchVipReward(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchVipReward error.", zap.Error(err))
+		logger.Error("client FetchVipReward error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchVipReward.", zap.Reflect("resVipReward", resVipReward))
+	logger.Info("client FetchVipReward.", zap.Reflect("resVipReward", resVipReward))
 
 	resMonthTicketInfo, err := client.FetchMonthTicketInfo(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchMonthTicketInfo error.", zap.Error(err))
+		logger.Error("client FetchMonthTicketInfo error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchMonthTicketInfo.", zap.Reflect("resMonthTicketInfo", resMonthTicketInfo))
+	logger.Info("client FetchMonthTicketInfo.", zap.Reflect("resMonthTicketInfo", resMonthTicketInfo))
 
 	resAchievement, err := client.FetchAchievement(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchAchievement error.", zap.Error(err))
+		logger.Error("client FetchAchievement error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchAchievement.", zap.Reflect("resAchievement", resAchievement))
+	logger.Info("client FetchAchievement.", zap.Reflect("resAchievement", resAchievement))
 
 	resCommentSetting, err := client.FetchCommentSetting(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchCommentSetting error.", zap.Error(err))
+		logger.Error("client FetchCommentSetting error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchCommentSetting.", zap.Reflect("resCommentSetting", resCommentSetting))
+	logger.Info("client FetchCommentSetting.", zap.Reflect("resCommentSetting", resCommentSetting))
 
 	resAccountSettings, err := client.FetchAccountSettings(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchAccountSettings error.", zap.Error(err))
+		logger.Error("client FetchAccountSettings error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchAccountSettings.", zap.Reflect("resAccountSettings", resAccountSettings))
+	logger.Info("client FetchAccountSettings.", zap.Reflect("resAccountSettings", resAccountSettings))
 
 	resModNicknameTime, err := client.FetchModNicknameTime(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchModNicknameTime error.", zap.Error(err))
+		logger.Error("client FetchModNicknameTime error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchModNicknameTime.", zap.Reflect("resModNicknameTime", resModNicknameTime))
+	logger.Info("client FetchModNicknameTime.", zap.Reflect("resModNicknameTime", resModNicknameTime))
 
 	resMisc, err := client.FetchMisc(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchMisc error.", zap.Error(err))
+		logger.Error("client FetchMisc error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchMisc.", zap.Reflect("resMisc", resMisc))
+	logger.Info("client FetchMisc.", zap.Reflect("resMisc", resMisc))
 
 	resAnnouncement, err := client.FetchAnnouncement(ctx, &message.ReqFetchAnnouncement{})
 	if err != nil {
-		logger.Error("majsoul FetchAnnouncement error.", zap.Error(err))
+		logger.Error("client FetchAnnouncement error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchAnnouncement.", zap.Reflect("resAnnouncement", resAnnouncement))
+	logger.Info("client FetchAnnouncement.", zap.Reflect("resAnnouncement", resAnnouncement))
 
 	// 写错了吧 req?
 	reqRollingNotice, err := client.FetchRollingNotice(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul FetchRollingNotice error.", zap.Error(err))
+		logger.Error("client FetchRollingNotice error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul FetchRollingNotice.", zap.Reflect("reqRollingNotice", reqRollingNotice))
+	logger.Info("client FetchRollingNotice.", zap.Reflect("reqRollingNotice", reqRollingNotice))
 
 	resCommon, err := client.LoginSuccess(ctx, &message.ReqCommon{})
 	if err != nil {
-		logger.Error("majsoul LoginSuccess error.", zap.Error(err))
+		logger.Error("client LoginSuccess error.", zap.Error(err))
 		return err
 	}
-	logger.Info("majsoul LoginSuccess.", zap.Reflect("resCommon", resCommon))
+	logger.Info("client LoginSuccess.", zap.Reflect("resCommon", resCommon))
 
 	return nil
 }
@@ -473,7 +473,7 @@ func main() {
 	defer cancel()
 	client, err := NewMajSoul(ctx)
 	if err != nil {
-		logger.Error("majsoul client is not created.", zap.Error(err))
+		logger.Error("client client is not created.", zap.Error(err))
 		return
 	}
 
@@ -481,15 +481,15 @@ func main() {
 	resLogin, err := client.Login(timeOutCtx, *account, *password)
 	cancel()
 	if err != nil {
-		logger.Error("majsoul Login error.", zap.Error(err))
+		logger.Error("client Login error.", zap.Error(err))
 		return
 	}
 	if resLogin.Error != nil && resLogin.Error.Code != 0 {
 		errorString := majsoul.ErrorString(resLogin.Error)
-		logger.Error("majsoul Login error.", zap.Uint32("Code", resLogin.Error.Code), zap.String("errorString", errorString))
+		logger.Error("client Login error.", zap.Uint32("Code", resLogin.Error.Code), zap.String("errorString", errorString))
 		return
 	}
-	logger.Info("majsoul Login.", zap.Reflect("resLogin", resLogin))
+	logger.Info("client Login.", zap.Reflect("resLogin", resLogin))
 
 	err = UpdateLoginInfo(ctx, client)
 	if err != nil {
@@ -500,7 +500,7 @@ func main() {
 	// 重连到正在进行对局的游戏中
 	if resLogin.Account != nil && resLogin.Account.RoomId != 0 {
 		if err := client.ConnGame(ctx); err != nil {
-			logger.Error("majsoul ConnGame error.", zap.Error(err))
+			logger.Error("client ConnGame error.", zap.Error(err))
 		}
 
 		var err error
@@ -510,33 +510,44 @@ func main() {
 			GameUuid:  resLogin.GameInfo.GameUuid,
 		})
 		if err != nil {
-			logger.Error("majsoul AuthGame error.", zap.Error(err))
+			logger.Error("client AuthGame error.", zap.Error(err))
 		}
 
 		if resSyncGame, err := client.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
-			logger.Error("majsoul SyncGame error.", zap.Error(err))
+			logger.Error("client SyncGame error.", zap.Error(err))
 		} else {
-			logger.Debug("majsoul SyncGame.", zap.Reflect("resSyncGame", resSyncGame))
+			logger.Debug("client SyncGame.", zap.Reflect("resSyncGame", resSyncGame))
 		}
 
 		if _, err := client.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
-			logger.Error("majsoul FetchGamePlayerState error.", zap.Error(err))
+			logger.Error("client FetchGamePlayerState error.", zap.Error(err))
 		} else {
-			logger.Debug("majsoul FetchGamePlayerState.")
+			logger.Debug("client FetchGamePlayerState.")
 		}
 
 		if _, err := client.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
-			logger.Error("majsoul FinishSyncGame error.", zap.Error(err))
+			logger.Error("client FinishSyncGame error.", zap.Error(err))
 		} else {
-			logger.Debug("majsoul FinishSyncGame.")
+			logger.Debug("client FinishSyncGame.")
 		}
 
 		if _, err := client.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
-			logger.Error("majsoul FetchGamePlayerState error.", zap.Error(err))
+			logger.Error("client FetchGamePlayerState error.", zap.Error(err))
 		} else {
-			logger.Debug("majsoul FetchGamePlayerState.")
+			logger.Debug("client FetchGamePlayerState.")
 		}
 	}
+
+	client.OnGameReconnect(func(ctx context.Context, rsg *message.ResSyncGame) {
+		for i, uid := range client.GameInfo.SeatList {
+			if uid == client.Account.AccountId {
+				client.seat = uint32(i)
+				break
+			}
+		}
+
+		logger.Debug("client OnGameReconnect.", zap.Reflect("rsg", rsg))
+	})
 
 	<-ctx.Done()
 }
