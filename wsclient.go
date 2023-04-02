@@ -21,18 +21,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	MsgTypeNotify   uint8 = 1 // 通知
+	MsgTypeRequest  uint8 = 2 // 请求
+	MsgTypeResponse uint8 = 3 // 回复
+)
+
 type wsConfig struct {
 	ConnAddress    string
 	ProxyAddress   string
 	RequestHeaders http.Header
-	// ReconnectInterval time.Duration
-	// ReconnectNumber   int
 }
 
 type wsClient struct {
 	*wsConfig
-	curReconnectNumber int
-
 	conn               *websocket.Conn
 	close              chan struct{}
 	isConnected        uint32
@@ -45,15 +47,16 @@ type wsClient struct {
 }
 
 type Reply struct {
-	out      proto.Message
-	wait     chan struct{}
-	msgIndex uint8
+	out   proto.Message
+	wait  chan struct{}
+	index uint8
 }
 
 func newWsClient(config *wsConfig) *wsClient {
 	return &wsClient{
 		wsConfig:           config,
 		conn:               nil,
+		close:              make(chan struct{}),
 		isConnected:        0,
 		messageIndex:       0,
 		requestResponseMap: sync.Map{},
@@ -96,42 +99,31 @@ func (client *wsClient) Close() {
 	}
 }
 
-// func (client *wsClient) reConnect(ctx context.Context) {
-// 	for {
-// 		if client.curReconnectNumber >= client.ReconnectNumber {
-// 			return
-// 		}
-// 		select {
-// 		case _, ok := <-client.close:
-// 			if !ok {
-// 				return
-// 			}
-// 		default:
-// 		}
-// 		client.curReconnectNumber++
-// 		time.Sleep(client.ReconnectInterval)
+func (client *wsClient) reConnect(ctx context.Context) {
+	for {
+		select {
+		case _, ok := <-client.close:
+			if !ok {
+				return
+			}
+		default:
+		}
 
-// 		ctx, cancel := context.WithCancel(ctx)
-// 		defer cancel()
+		time.Sleep(time.Second)
 
-// 		err := client.Connect(ctx)
-// 		if err != nil {
-// 			continue
-// 		}
+		err := client.Connect(ctx)
+		if err != nil {
+			continue
+		}
 
-// 		client.curReconnectNumber = 0
-
-// 		if client.reconnectHandler != nil {
-// 			client.reconnectHandler(ctx)
-// 			return
-// 		}
-// 	}
-// }
+		if client.reconnectHandler != nil {
+			client.reconnectHandler(ctx)
+			return
+		}
+	}
+}
 
 func (client *wsClient) Connect(ctx context.Context) error {
-	if !client.getIsConnected() {
-		return websocket.CloseError{}
-	}
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -158,10 +150,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 		httpClient.Transport = transport
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	conn, _, err := websocket.Dial(timeoutCtx, client.ConnAddress, &websocket.DialOptions{
+	conn, _, err := websocket.Dial(ctx, client.ConnAddress, &websocket.DialOptions{
 		HTTPClient:           httpClient,
 		HTTPHeader:           client.RequestHeaders,
 		Subprotocols:         nil,
@@ -174,6 +163,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 
 	conn.SetReadLimit(1048576)
 	client.conn = conn
+	logger.Debug("ws connect success:", zap.String("connAddress", client.ConnAddress))
 	client.setIsConnected(true)
 
 	go client.readLoop(ctx)
@@ -181,14 +171,6 @@ func (client *wsClient) Connect(ctx context.Context) error {
 }
 
 func (client *wsClient) readLoop(ctx context.Context) {
-	defer func() {
-		if err := recover(); err != nil {
-			logger.Error("ws catch exception: ", zap.Any("err", err))
-			client.Close()
-			// go client.reConnect(ctx)
-		}
-	}()
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -207,6 +189,11 @@ func (client *wsClient) readLoop(ctx context.Context) {
 			continue
 		}
 
+		if len(payload) == 0 {
+			logger.Error("ws read message length is zero: ")
+			continue
+		}
+
 		switch payload[0] {
 		case MsgTypeNotify:
 			client.handleNotify(payload)
@@ -217,15 +204,14 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		}
 	}
 
-	// select {
-	// case <-ctx.Done():
-	// 	client.Close()
-	// 	return
-	// default:
-	// 	client.setIsConnected(false)
-	// 	go client.reConnect(ctx)
-	// }
-	client.Close()
+	select {
+	case <-ctx.Done():
+		client.Close()
+		return
+	default:
+		client.setIsConnected(false)
+		go client.reConnect(ctx)
+	}
 }
 
 func (client *wsClient) handleNotify(msg []byte) {
@@ -343,23 +329,23 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 	}
 
 	reply := &Reply{
-		out:      nil,
-		wait:     make(chan struct{}),
-		msgIndex: indexUint8,
+		out:   nil,
+		wait:  make(chan struct{}),
+		index: indexUint8,
 	}
 
-	if _, ok := client.requestResponseMap.LoadOrStore(reply.msgIndex, reply); ok {
-		return nil, fmt.Errorf("ws message index %d already exists in the requestResponseMap", reply.msgIndex)
+	if _, ok := client.requestResponseMap.LoadOrStore(reply.index, reply); ok {
+		return nil, fmt.Errorf("ws message index %d already exists in the requestResponseMap", reply.index)
 	}
 
 	return reply, nil
 }
 
 func (client *wsClient) RecvMsg(ctx context.Context, reply *Reply) error {
-	defer client.requestResponseMap.Delete(reply.msgIndex)
+	defer client.requestResponseMap.Delete(reply.index)
 	select {
 	case <-client.close:
-		return websocket.CloseError{}
+		return websocket.CloseError{Code: websocket.StatusNoStatusRcvd}
 	case <-time.After(time.Minute):
 		return fmt.Errorf("ws timeout waiting for response message after %s", time.Minute)
 	case <-ctx.Done():

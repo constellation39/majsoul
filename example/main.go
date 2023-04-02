@@ -159,33 +159,15 @@ func (mSoul *Majsoul) ActionDealTile(ctx context.Context, action *message.Action
 		return
 	}
 
-	if action.Operation != nil && len(action.Operation.OperationList) != 0 {
-		for _, operation := range action.Operation.OperationList {
-			switch operation.Type {
-			case majsoul.ActionDiscard:
-				time.Sleep(time.Second * 3)
-				_, err := mSoul.InputOperation(ctx, &message.ReqSelfOperation{
-					Type:    majsoul.ActionDiscard,
-					Tile:    action.Tile,
-					Moqie:   true,
-					Timeuse: 1,
-				})
-				if err != nil {
-					logger.Error("InputOperation failed", zap.Error(err))
-				}
-			case majsoul.ActionChi:
-			case majsoul.ActionPon:
-			case majsoul.ActionAnKAN:
-			case majsoul.ActionMinKan:
-			case majsoul.ActionKaKan:
-			case majsoul.ActionRiichi:
-			case majsoul.ActionTsumo:
-			case majsoul.ActionRon:
-			case majsoul.ActionKuku:
-			case majsoul.ActionKita:
-			case majsoul.ActionPass:
-			}
-		}
+	time.Sleep(time.Second * 3)
+	_, err := mSoul.InputOperation(ctx, &message.ReqSelfOperation{
+		Type:    majsoul.ActionDiscard,
+		Tile:    action.Tile,
+		Moqie:   true,
+		Timeuse: 1,
+	})
+	if err != nil {
+		logger.Error("InputOperation failed", zap.Error(err))
 	}
 
 }
@@ -550,16 +532,6 @@ func main() {
 			logger.Debug("majsoul FetchGamePlayerState.")
 		}
 	}
-
-	client.OnGatewayClose(func() {
-		cancel()
-		logger.Panic("majsoul gateway close")
-	})
-
-	client.OnGameClose(func() {
-		cancel()
-		logger.Panic("majsoul game close")
-	})
 
 	<-ctx.Done()
 }
