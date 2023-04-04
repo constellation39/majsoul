@@ -464,6 +464,8 @@ func UpdateLoginInfo(ctx context.Context, client *Majsoul) error {
 
 func main() {
 	flag.Parse()
+	logger.SetOutput("stdout")
+	logger.SetErrorOutput("stderr")
 	logger.EnableDevelopment()
 
 	if *account == "" {

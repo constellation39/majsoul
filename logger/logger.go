@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	development   bool = false
 	logger        *zap.Logger
 	atomicLevel   = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 	currentConfig zap.Config
@@ -16,14 +17,10 @@ var (
 )
 
 func init() {
-	initLogger(false)
-}
-
-func initLogger(debug bool) {
 	developmentEncoderConfig := zap.NewDevelopmentEncoderConfig()
 	developmentEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
 	developmentEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	config := zap.Config{
+	currentConfig = zap.Config{
 		Level:             atomicLevel,
 		Development:       false,
 		DisableCaller:     false,
@@ -38,32 +35,19 @@ func initLogger(debug bool) {
 		ErrorOutputPaths: []string{"discard"},
 		InitialFields:    nil,
 	}
-	if !debug {
-		atomicLevel.SetLevel(zap.ErrorLevel)
-		productionEncoderConfig := zap.NewProductionEncoderConfig()
-		productionEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
-		productionEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-		config.EncoderConfig = productionEncoderConfig
-	}
-	if runtime.GOOS == "windows" {
-		config.Encoding = "console"
-	}
-	var err error
-	logger, err = config.Build(zap.AddStacktrace(zap.ErrorLevel), zap.AddCallerSkip(1))
-	currentConfig = config
-	if err != nil {
-		log.Fatalf("Failed: initLogger error %+v", err)
-	}
+	updateLoggerCore()
 }
 
 // EnableDevelopment 启动开发模式
 func EnableDevelopment() {
-	initLogger(true)
+	development = true
+	updateLoggerCore()
 }
 
 // EnableProduction 启动生产模式
 func EnableProduction() {
-	initLogger(false)
+	development = false
+	updateLoggerCore()
 }
 
 // SetOutput 设置日志输出到控制台
@@ -75,15 +59,25 @@ func SetOutput(output ...string) {
 // SetErrorOutput 设置日志输出到文件
 func SetErrorOutput(errorOutput ...string) {
 	currentConfig.ErrorOutputPaths = errorOutput
+	updateLoggerCore()
 }
 
-// updateLoggerCore 根据新的配置更新logger核心
 func updateLoggerCore() {
-	newLogger, err := currentConfig.Build(zap.AddStacktrace(zap.ErrorLevel), zap.AddCallerSkip(1))
+	if development {
+		atomicLevel.SetLevel(zap.ErrorLevel)
+		productionEncoderConfig := zap.NewProductionEncoderConfig()
+		productionEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
+		productionEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		currentConfig.EncoderConfig = productionEncoderConfig
+	}
+	if runtime.GOOS == "windows" {
+		currentConfig.Encoding = "console"
+	}
+	var err error
+	logger, err = currentConfig.Build(zap.AddStacktrace(zap.ErrorLevel), zap.AddCallerSkip(1))
 	if err != nil {
 		log.Fatalf("Failed: initLogger error %+v", err)
 	}
-	logger = newLogger
 }
 
 func Sync() {
