@@ -22,9 +22,9 @@ import (
 )
 
 const (
-	MsgTypeNotify   uint8 = 1 // 通知
-	MsgTypeRequest  uint8 = 2 // 请求
-	MsgTypeResponse uint8 = 3 // 回复
+	msgTypeNotify   uint8 = 1 // 通知
+	msgTypeRequest  uint8 = 2 // 请求
+	msgTypeResponse uint8 = 3 // 回复
 )
 
 type wsConfig struct {
@@ -36,17 +36,17 @@ type wsConfig struct {
 type wsClient struct {
 	*wsConfig
 	conn               *websocket.Conn
-	close              chan struct{}
+	closeCh            chan struct{}
 	isConnected        uint32
 	messageIndex       uint32
-	requestResponseMap sync.Map // map[uint8]*Reply
+	requestResponseMap sync.Map // map[uint8]*reply
 	notify             chan proto.Message
-
-	closeHandler     func()
-	reconnectHandler func(ctx context.Context)
+	cancelFunc         context.CancelFunc
+	errorCallback      func(error)
+	reconnectHandler   func(ctx context.Context)
 }
 
-type Reply struct {
+type reply struct {
 	out   proto.Message
 	wait  chan struct{}
 	index uint8
@@ -56,11 +56,14 @@ func newWsClient(config *wsConfig) *wsClient {
 	return &wsClient{
 		wsConfig:           config,
 		conn:               nil,
-		close:              make(chan struct{}),
+		closeCh:            make(chan struct{}),
 		isConnected:        0,
 		messageIndex:       0,
 		requestResponseMap: sync.Map{},
-		notify:             make(chan proto.Message, 32),
+		notify:             make(chan proto.Message),
+		cancelFunc:         nil,
+		errorCallback:      nil,
+		reconnectHandler:   nil,
 	}
 }
 
@@ -76,33 +79,41 @@ func (client *wsClient) getIsConnected() bool {
 	return atomic.LoadUint32(&client.isConnected) == 1
 }
 
-func (client *wsClient) OnReconnect(callbrak func(ctx context.Context)) {
-	client.reconnectHandler = callbrak
+func (client *wsClient) OnReconnect(callback func(ctx context.Context)) {
+	client.reconnectHandler = callback
 }
 
-func (client *wsClient) OnClose(callbrak func()) {
-	client.closeHandler = callbrak
+func (client *wsClient) OnError(callback func(error)) {
+	client.errorCallback = callback
 }
 
-func (client *wsClient) Close() {
-	if client.getIsConnected() {
-		close(client.close)
-		client.setIsConnected(false)
-		if client.conn != nil {
-			if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
-				logger.Error("majsoul ws failed to close websocket connection: ", zap.Error(err))
-			}
-		}
-		if client.closeHandler != nil {
-			client.closeHandler()
-		}
+func (client *wsClient) Close() error {
+	if !client.getIsConnected() {
+		return fmt.Errorf("majsoul ws client is not connected")
 	}
+	select {
+	case _, ok := <-client.closeCh:
+		if !ok {
+			return nil
+		}
+	default:
+	}
+	client.cancelFunc()
+	close(client.closeCh)
+	client.setIsConnected(false)
+	if client.conn == nil {
+		return fmt.Errorf("majsoul ws client connection is nil")
+	}
+	if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
+		return fmt.Errorf("majsoul ws failed to closeCh websocket connection: %w", err)
+	}
+	return nil
 }
 
 func (client *wsClient) reConnect(ctx context.Context) {
 	for {
 		select {
-		case _, ok := <-client.close:
+		case _, ok := <-client.closeCh:
 			if !ok {
 				return
 			}
@@ -111,8 +122,11 @@ func (client *wsClient) reConnect(ctx context.Context) {
 
 		time.Sleep(time.Second)
 
-		err := client.Connect(ctx)
+		err := client.connect(ctx)
 		if err != nil {
+			if client.errorCallback != nil {
+				client.errorCallback(err)
+			}
 			continue
 		}
 
@@ -123,7 +137,7 @@ func (client *wsClient) reConnect(ctx context.Context) {
 	}
 }
 
-func (client *wsClient) Connect(ctx context.Context) error {
+func (client *wsClient) connect(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -133,6 +147,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		logger.Error("majsoul ws failed to create cookie jar: ", zap.Error(err))
+		return err
 	}
 
 	httpClient := &http.Client{
@@ -158,6 +173,7 @@ func (client *wsClient) Connect(ctx context.Context) error {
 		CompressionThreshold: 0,
 	})
 	if err != nil {
+		logger.Error("majsoul ws failed to dial: ", zap.String("connAddress", client.ConnAddress), zap.String("proxyAddress", client.ProxyAddress), zap.Error(err))
 		return err
 	}
 
@@ -170,11 +186,23 @@ func (client *wsClient) Connect(ctx context.Context) error {
 	return nil
 }
 
+func (client *wsClient) Connect(ctx context.Context) error {
+	ctx, client.cancelFunc = context.WithCancel(ctx)
+	return client.connect(ctx)
+}
+
 func (client *wsClient) readLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			client.Close()
+			err := client.Close()
+			if err != nil {
+				logger.Error("majsoul ws closeCh: ", zap.String("connAddress", client.ConnAddress), zap.String("proxyAddress", client.ProxyAddress), zap.Error(err))
+				if client.errorCallback != nil {
+					client.errorCallback(err)
+				}
+				return
+			}
 			return
 		default:
 		}
@@ -182,35 +210,47 @@ func (client *wsClient) readLoop(ctx context.Context) {
 		msgType, payload, err := client.conn.Read(ctx)
 		if err != nil {
 			logger.Debug("majsoul ws read: ", zap.String("connAddress", client.ConnAddress), zap.String("proxyAddress", client.ProxyAddress), zap.Error(err))
+			if client.errorCallback != nil {
+				client.errorCallback(err)
+			}
 			break
 		}
 		if msgType != websocket.MessageBinary {
 			logger.Info("majsoul ws unsupported message types: ", zap.Int("t", int(msgType)))
+			if client.errorCallback != nil {
+				client.errorCallback(fmt.Errorf("majsoul ws unsupported message types: %d", msgType))
+			}
 			continue
 		}
 
 		if len(payload) == 0 {
 			logger.Error("majsoul ws read message length is zero: ")
+			if client.errorCallback != nil {
+				client.errorCallback(fmt.Errorf("majsoul ws read message length is zero"))
+			}
 			continue
 		}
 
 		switch payload[0] {
-		case MsgTypeNotify:
+		case msgTypeNotify:
 			client.handleNotify(payload)
-		case MsgTypeResponse:
+		case msgTypeResponse:
 			client.handleResponse(payload)
 		default:
-			logger.Info("majsoul ws unknown message types: ", zap.Uint8("value", payload[0]))
+			logger.Warn("majsoul ws unknown message types: ", zap.Uint8("value", payload[0]))
 		}
 	}
 
 	select {
 	case <-ctx.Done():
-		client.Close()
+		err := client.Close()
+		if err != nil {
+			logger.Error("majsoul ws closeCh error: ", zap.Error(err))
+		}
 		return
 	default:
 		client.setIsConnected(false)
-		go client.reConnect(ctx)
+		client.reConnect(ctx)
 	}
 }
 
@@ -235,65 +275,70 @@ func (client *wsClient) handleNotify(msg []byte) {
 		return
 	}
 
-	client.notify <- notifyMessage
+	select {
+	case client.notify <- notifyMessage:
+	default:
+		logger.Error("majsoul ws notify channel is full: ", zap.Reflect("notify message", notifyMessage))
+	}
+
 }
 
 func (client *wsClient) handleResponse(msg []byte) {
-	responseKey := uint8((msg[2] << 7) + msg[1])
+	responseKey := (msg[2] << 7) + msg[1]
 
 	response, ok := client.requestResponseMap.Load(responseKey)
 	if !ok {
 		return
 	}
 
-	reply, ok := response.(*Reply)
+	r, ok := response.(*reply)
 	if !ok {
-		logger.Error("ws response type not proto.Message: ", zap.Reflect("reply", reply))
+		logger.Error("majsoul ws response type not proto.Message: ", zap.Reflect("reply", r))
 		return
 	}
 
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[3:], wrapper)
 	if err != nil {
-		logger.Error("ws response message unmarshal error: ", zap.Error(err))
+		logger.Error("majsoul ws response message unmarshal error: ", zap.Error(err))
 		return
 	}
 
-	err = proto.Unmarshal(wrapper.Data, reply.out)
+	err = proto.Unmarshal(wrapper.Data, r.out)
 	if err != nil {
-		logger.Error("ws response type unmarshal error: ", zap.Error(err))
+		logger.Error("majsoul ws response type unmarshal error: ", zap.Error(err))
 		return
 	}
 
-	close(reply.wait)
+	close(r.wait)
 }
 
 func (client *wsClient) Receive() <-chan proto.Message {
 	return client.notify
 }
 
-func (client *wsClient) Invoke(ctx context.Context, method string, in interface{}, out interface{}, opts ...grpc.CallOption) error {
+func (client *wsClient) Invoke(ctx context.Context, method string, in interface{}, out interface{}, _ ...grpc.CallOption) error {
 	tokens := strings.Split(method, "/")
 	api := strings.Join(tokens, ".")
 
-	reply, err := client.SendMsg(ctx, api, in.(proto.Message))
+	r, err := client.sendMsg(ctx, api, in.(proto.Message))
 	if err != nil {
 		return err
 	}
-	reply.out = out.(proto.Message)
+	r.out = out.(proto.Message)
 
-	return client.RecvMsg(ctx, reply)
+	return client.recvMsg(ctx, r)
 }
 
-func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Message) (_ *Reply, err error) {
+func (client *wsClient) sendMsg(ctx context.Context, api string, in proto.Message) (_ *reply, err error) {
 	if !client.getIsConnected() {
-		return nil, websocket.CloseError{}
+		return nil, websocket.CloseError{Code: websocket.StatusNoStatusRcvd}
 	}
 	var body []byte
 
 	body, err = proto.Marshal(in)
 	if err != nil {
-		return nil, fmt.Errorf("ws failed to marshal input message: %v, error: %w", in, err)
+		return nil, fmt.Errorf("majsoul ws failed to marshal message: %v, error: %w", in, err)
 	}
 
 	wrapper := &message.Wrapper{
@@ -303,7 +348,7 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 
 	body, err = proto.Marshal(wrapper)
 	if err != nil {
-		return nil, fmt.Errorf("ws failed to marshal input message: %w", err)
+		return nil, fmt.Errorf("majsoul ws failed to marshal wrapper message: %v, error: %w", wrapper, err)
 	}
 
 	index := atomic.LoadUint32(&client.messageIndex)
@@ -317,7 +362,7 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 	indexUint8 := uint8(index)
 
 	buff := new(bytes.Buffer)
-	buff.WriteByte(MsgTypeRequest)
+	buff.WriteByte(msgTypeRequest)
 	buff.WriteByte(indexUint8 - (indexUint8 >> 7 << 7))
 	buff.WriteByte(indexUint8 >> 7)
 	buff.Write(body)
@@ -328,32 +373,33 @@ func (client *wsClient) SendMsg(ctx context.Context, api string, in proto.Messag
 		return
 	}
 
-	reply := &Reply{
+	r := &reply{
 		out:   nil,
 		wait:  make(chan struct{}),
 		index: indexUint8,
 	}
 
-	if _, ok := client.requestResponseMap.LoadOrStore(reply.index, reply); ok {
-		return nil, fmt.Errorf("ws message index %d already exists in the requestResponseMap", reply.index)
+	if _, ok := client.requestResponseMap.LoadOrStore(r.index, r); ok {
+		return nil, fmt.Errorf("majsoul ws request index %d already exists", r.index)
 	}
 
-	return reply, nil
+	return r, nil
 }
 
-func (client *wsClient) RecvMsg(ctx context.Context, reply *Reply) error {
+func (client *wsClient) recvMsg(ctx context.Context, reply *reply) error {
 	defer client.requestResponseMap.Delete(reply.index)
 	select {
-	case <-client.close:
+	case <-client.closeCh:
 		return websocket.CloseError{Code: websocket.StatusNoStatusRcvd}
 	case <-time.After(time.Minute):
-		return fmt.Errorf("ws timeout waiting for response message after %s", time.Minute)
+		return fmt.Errorf("majsoul ws timeout waiting for response message after %s", time.Minute)
 	case <-ctx.Done():
+		return ctx.Err()
 	case <-reply.wait:
 	}
-	return ctx.Err()
+	return nil
 }
 
-func (client *wsClient) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+func (client *wsClient) NewStream(context.Context, *grpc.StreamDesc, string, ...grpc.CallOption) (grpc.ClientStream, error) {
 	panic("implement me")
 }

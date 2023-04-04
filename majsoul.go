@@ -35,28 +35,28 @@ type Implement interface {
 	Action // Action 游戏桌面内下发
 }
 
-type Config struct {
+type config struct {
 	ServerProxy  string // 代理服务器地址(https)请求时，可以为空，为空时不使用代理
 	GatewayProxy string // 代理网关服务器地址(wss)请求时，可以为空，为空时不使用代理
 	GameProxy    string // 代理游戏服务器地址(wss)请求时，可以为空，为空时不使用代理
 }
 
-type ConfigOption func(*Config)
+type ConfigOption func(*config)
 
 func WithServerProxy(proxyAddress string) ConfigOption {
-	return func(config *Config) {
+	return func(config *config) {
 		config.ServerProxy = proxyAddress
 	}
 }
 
 func WithGatewayProxy(proxyAddress string) ConfigOption {
-	return func(config *Config) {
+	return func(config *config) {
 		config.GatewayProxy = proxyAddress
 	}
 }
 
 func WithGameProxy(proxyAddress string) ConfigOption {
-	return func(config *Config) {
+	return func(config *config) {
 		config.GameProxy = proxyAddress
 	}
 }
@@ -72,27 +72,28 @@ type Majsoul struct {
 	ServerAddress          *ServerAddress       // 连接到的服务器地址
 	Request                *request             // 用于直接向http(s)请求
 	Version                *Version             // 初始化时获取的版本信息
-	Config                 *Config              // Majsoul 初始化时使用的配置
+	Config                 *config              // Majsoul 初始化时使用的配置
 	Account                *message.Account     // 该字段应在登录成功后访问
 	GameInfo               *message.ResAuthGame // 该字段应在进入游戏桌面后访问
 	accessToken            string               // 验证身份时使用 的 token
 	connectToken           string               // 重连时使用的 token
 	gameUuid               string               // 是否在游戏中
 
+	cancelFunc                 context.CancelFunc
 	onGatewayReconnectCallBack func(context.Context, *message.ResLogin)
 	onGameReconnectCallBack    func(context.Context, *message.ResSyncGame)
 }
 
-// Majsoul 是一个处理麻将游戏逻辑的结构体。要使用它，请先创建一个 Majsoul 对象，
+// New Majsoul 是一个处理麻将游戏逻辑的结构体。要使用它，请先创建一个 Majsoul 对象，
 func New(configOptions ...ConfigOption) *Majsoul {
-	config := &Config{}
+	cfg := &config{}
 
 	for _, configOption := range configOptions {
-		configOption(config)
+		configOption(cfg)
 	}
 
 	majsoul := &Majsoul{
-		Config: config,
+		Config: cfg,
 		UUID:   uuid(),
 	}
 
@@ -103,7 +104,6 @@ func (majsoul *Majsoul) setLobbyClient(client *wsClient) {
 	if majsoul.lobbyConn != nil {
 		majsoul.closeLobbyClient()
 	}
-	client.OnClose(majsoul.closeLobbyClient)
 	client.OnReconnect(majsoul.onGatewayReconnect)
 	majsoul.lobbyConn = client
 	majsoul.LobbyClient = message.NewLobbyClient(client)
@@ -111,7 +111,10 @@ func (majsoul *Majsoul) setLobbyClient(client *wsClient) {
 
 func (majsoul *Majsoul) closeLobbyClient() {
 	if majsoul.lobbyConn != nil {
-		majsoul.lobbyConn.Close()
+		err := majsoul.lobbyConn.Close()
+		if err != nil {
+			logger.Error("majsoul closeCh lobby client error", zap.Error(err))
+		}
 		majsoul.lobbyConn = nil
 	}
 	if majsoul.lobbyConn != nil {
@@ -123,7 +126,6 @@ func (majsoul *Majsoul) setFastTestClient(client *wsClient) {
 	if majsoul.fastTestConn != nil {
 		majsoul.closeFastTestClient()
 	}
-	client.OnClose(majsoul.closeFastTestClient)
 	client.OnReconnect(majsoul.onGameReconnect)
 	majsoul.fastTestConn = client
 	majsoul.FastTestClient = message.NewFastTestClient(client)
@@ -131,7 +133,10 @@ func (majsoul *Majsoul) setFastTestClient(client *wsClient) {
 
 func (majsoul *Majsoul) closeFastTestClient() {
 	if majsoul.fastTestConn != nil {
-		majsoul.fastTestConn.Close()
+		err := majsoul.fastTestConn.Close()
+		if err != nil {
+			logger.Error("majsoul closeCh fast test client error", zap.Error(err))
+		}
 		majsoul.fastTestConn = nil
 	}
 	if majsoul.FastTestClient != nil {
@@ -146,6 +151,7 @@ func (majsoul *Majsoul) Implement(implement Implement) {
 
 // TryConnect 尝试寻找可以使用的服务器
 func (majsoul *Majsoul) TryConnect(ctx context.Context, ServerAddressList []*ServerAddress) (err error) {
+	ctx, majsoul.cancelFunc = context.WithCancel(ctx)
 	for _, serverAddress := range ServerAddressList {
 		select {
 		case <-ctx.Done():
@@ -179,8 +185,6 @@ func (majsoul *Majsoul) TryConnect(ctx context.Context, ServerAddressList []*Ser
 			ConnAddress:    serverAddress.GatewayAddress,
 			ProxyAddress:   majsoul.Config.GatewayProxy,
 			RequestHeaders: header,
-			// ReconnectInterval: majsoul.Config.ReconnectInterval,
-			// ReconnectNumber:   majsoul.Config.ReconnectNumber,
 		})
 		err = client.Connect(ctx)
 		if err != nil {
@@ -206,8 +210,7 @@ func (majsoul *Majsoul) TryConnect(ctx context.Context, ServerAddressList []*Ser
 }
 
 func (majsoul *Majsoul) Close() {
-	majsoul.closeFastTestClient()
-	majsoul.closeLobbyClient()
+	majsoul.cancelFunc()
 }
 
 // initVersion 获取版本
@@ -236,8 +239,6 @@ func (majsoul *Majsoul) ConnGame(ctx context.Context) (err error) {
 		ConnAddress:    majsoul.ServerAddress.GameAddress,
 		ProxyAddress:   majsoul.Config.GameProxy,
 		RequestHeaders: header,
-		// ReconnectInterval: majsoul.Config.ReconnectInterval,
-		// ReconnectNumber:   majsoul.Config.ReconnectNumber,
 	})
 	err = clinet.Connect(ctx)
 	if err != nil {
@@ -369,7 +370,7 @@ func (majsoul *Majsoul) receiveConn(ctx context.Context) {
 			return
 		case data, ok := <-receive:
 			if !ok {
-				logger.Debug("majsoul lobbyConn close")
+				logger.Debug("majsoul lobbyConn closeCh")
 				return
 			}
 			majsoul.handleNotify(ctx, data)
@@ -388,7 +389,7 @@ func (majsoul *Majsoul) receiveGame(ctx context.Context) {
 			return
 		case data, ok := <-receive:
 			if !ok {
-				logger.Debug("majsoul fastTestConn close")
+				logger.Debug("majsoul fastTestConn closeCh")
 				return
 			}
 			majsoul.handleNotify(ctx, data)

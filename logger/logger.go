@@ -8,10 +8,12 @@ import (
 	"sync/atomic"
 )
 
-var logger = struct {
-	*zap.Logger
-	closeFlag int32
-}{}
+var (
+	logger        *zap.Logger
+	atomicLevel   = zap.NewAtomicLevelAt(zapcore.DebugLevel)
+	currentConfig zap.Config
+	closeFlag     int32
+)
 
 func init() {
 	initLogger(false)
@@ -22,7 +24,7 @@ func initLogger(debug bool) {
 	developmentEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
 	developmentEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	config := zap.Config{
-		Level:             zap.NewAtomicLevelAt(zap.DebugLevel),
+		Level:             atomicLevel,
 		Development:       false,
 		DisableCaller:     false,
 		DisableStacktrace: false,
@@ -32,39 +34,61 @@ func initLogger(debug bool) {
 		},
 		Encoding:         "json",
 		EncoderConfig:    developmentEncoderConfig,
-		OutputPaths:      []string{"stdout"},
-		ErrorOutputPaths: []string{"stderr"},
+		OutputPaths:      []string{"discard"},
+		ErrorOutputPaths: []string{"discard"},
 		InitialFields:    nil,
 	}
 	if !debug {
-		config.Level = zap.NewAtomicLevelAt(zap.ErrorLevel)
+		atomicLevel.SetLevel(zap.ErrorLevel)
 		productionEncoderConfig := zap.NewProductionEncoderConfig()
 		productionEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
 		productionEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 		config.EncoderConfig = productionEncoderConfig
-
 	}
 	if runtime.GOOS == "windows" {
 		config.Encoding = "console"
 	}
 	var err error
-	logger.Logger, err = config.Build(zap.AddStacktrace(zap.ErrorLevel), zap.AddCallerSkip(1))
+	logger, err = config.Build(zap.AddStacktrace(zap.ErrorLevel), zap.AddCallerSkip(1))
+	currentConfig = config
 	if err != nil {
 		log.Fatalf("Failed: initLogger error %+v", err)
 	}
 }
 
+// EnableDevelopment 启动开发模式
 func EnableDevelopment() {
 	initLogger(true)
 }
 
+// EnableProduction 启动生产模式
 func EnableProduction() {
 	initLogger(false)
 }
 
+// SetOutput 设置日志输出到控制台
+func SetOutput(output ...string) {
+	currentConfig.OutputPaths = output
+	updateLoggerCore()
+}
+
+// SetErrorOutput 设置日志输出到文件
+func SetErrorOutput(errorOutput ...string) {
+	currentConfig.ErrorOutputPaths = errorOutput
+}
+
+// updateLoggerCore 根据新的配置更新logger核心
+func updateLoggerCore() {
+	newLogger, err := currentConfig.Build(zap.AddStacktrace(zap.ErrorLevel), zap.AddCallerSkip(1))
+	if err != nil {
+		log.Fatalf("Failed: initLogger error %+v", err)
+	}
+	logger = newLogger
+}
+
 func Sync() {
-	if atomic.LoadInt32(&logger.closeFlag) == 1 {
-		atomic.CompareAndSwapInt32(&logger.closeFlag, 0, 1)
+	if atomic.LoadInt32(&closeFlag) == 1 {
+		atomic.CompareAndSwapInt32(&closeFlag, 0, 1)
 		err := logger.Sync()
 		if err != nil {
 			log.Printf("%+v", err)
