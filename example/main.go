@@ -467,6 +467,7 @@ func main() {
 	logger.SetOutput("stdout")
 	logger.SetErrorOutput("stderr")
 	logger.EnableDevelopment()
+	defer logger.Sync()
 
 	if *account == "" {
 		logger.Error("account is required.")
