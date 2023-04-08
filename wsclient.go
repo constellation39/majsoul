@@ -60,7 +60,7 @@ func newWsClient(config *wsConfig) *wsClient {
 		isConnected:        0,
 		messageIndex:       0,
 		requestResponseMap: sync.Map{},
-		notify:             make(chan proto.Message),
+		notify:             make(chan proto.Message, 32),
 		cancelFunc:         nil,
 		errorCallback:      nil,
 		reconnectHandler:   nil,
@@ -278,7 +278,7 @@ func (client *wsClient) handleNotify(msg []byte) {
 	select {
 	case client.notify <- notifyMessage:
 	default:
-		logger.Error("majsoul ws notify channel is full: ", zap.Reflect("notify message", notifyMessage))
+		logger.Error("majsoul ws notify channel is full: ", zap.Reflect("wrapper", wrapper), zap.Reflect("notify message", notifyMessage))
 	}
 
 }

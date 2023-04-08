@@ -1,11 +1,12 @@
 package logger
 
 import (
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"log"
 	"runtime"
 	"sync/atomic"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -17,9 +18,6 @@ var (
 )
 
 func init() {
-	developmentEncoderConfig := zap.NewDevelopmentEncoderConfig()
-	developmentEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
-	developmentEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	currentConfig = zap.Config{
 		Level:             atomicLevel,
 		Development:       false,
@@ -30,9 +28,9 @@ func init() {
 			Thereafter: 1,
 		},
 		Encoding:         "json",
-		EncoderConfig:    developmentEncoderConfig,
-		OutputPaths:      []string{"discard"},
-		ErrorOutputPaths: []string{"discard"},
+		EncoderConfig:    zap.NewProductionEncoderConfig(),
+		OutputPaths:      []string{},
+		ErrorOutputPaths: []string{},
 		InitialFields:    nil,
 	}
 	updateLoggerCore()
@@ -64,6 +62,12 @@ func SetErrorOutput(errorOutput ...string) {
 
 func updateLoggerCore() {
 	if development {
+		atomicLevel.SetLevel(zap.DebugLevel)
+		developmentEncoderConfig := zap.NewDevelopmentEncoderConfig()
+		developmentEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
+		developmentEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		currentConfig.EncoderConfig = developmentEncoderConfig
+	} else {
 		atomicLevel.SetLevel(zap.ErrorLevel)
 		productionEncoderConfig := zap.NewProductionEncoderConfig()
 		productionEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
