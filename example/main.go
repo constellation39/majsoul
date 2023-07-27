@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-type Game struct {
+type GameState struct {
 	seat         uint32
 	account      *message.Account     // 该字段应在登录成功后访问
 	gameInfo     *message.ResAuthGame // 该字段应在进入游戏桌面后访问
@@ -22,7 +22,7 @@ type Game struct {
 	gameUuid     string               // 是否在游戏中
 }
 
-func (Game) NotifyClientMessage(majSoul *majsoul.MajSoul, notifyClientMessage *message.NotifyClientMessage) {
+func (GameState) NotifyClientMessage(majSoul *majsoul.MajSoul, notifyClientMessage *message.NotifyClientMessage) {
 	type DetailRule struct {
 		TimeFixed    int  `json:"time_fixed"`
 		TimeAdd      int  `json:"time_add"`
@@ -88,12 +88,12 @@ func (Game) NotifyClientMessage(majSoul *majsoul.MajSoul, notifyClientMessage *m
 	}
 }
 
-func (Game) NotifyFriendViewChange(majSoul *majsoul.MajSoul, notifyFriendViewChange *message.NotifyFriendViewChange) {
+func (GameState) NotifyFriendViewChange(majSoul *majsoul.MajSoul, notifyFriendViewChange *message.NotifyFriendViewChange) {
 	logger.Debug("", zap.Reflect("notifyFriendViewChange", notifyFriendViewChange))
 }
 
 // NotifyEndGameVote 有人发起投降
-func (Game) NotifyEndGameVote(majSoul *majsoul.MajSoul, notifyEndGameVote *message.NotifyEndGameVote) {
+func (GameState) NotifyEndGameVote(majSoul *majsoul.MajSoul, notifyEndGameVote *message.NotifyEndGameVote) {
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
@@ -105,32 +105,32 @@ func (Game) NotifyEndGameVote(majSoul *majsoul.MajSoul, notifyEndGameVote *messa
 }
 
 // 从等待房间进入游戏时
-func (game *Game) NotifyRoomGameStart(majSoul *majsoul.MajSoul, notifyRoomGameStart *message.NotifyRoomGameStart) {
+func (gameState *GameState) NotifyRoomGameStart(majSoul *majsoul.MajSoul, notifyRoomGameStart *message.NotifyRoomGameStart) {
 
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		err := majSoul.ConnGame(ctx)
 		if err != nil {
-			panic(fmt.Sprintf("conn Game server failed error %v", err))
+			panic(fmt.Sprintf("conn GameState server failed error %v", err))
 		}
 	}
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		var err error
-		game.gameInfo, err = majSoul.FastTestClient.AuthGame(ctx, &message.ReqAuthGame{
-			AccountId: game.account.AccountId,
-			Token:     game.connectToken,
-			GameUuid:  game.gameUuid,
+		gameState.gameInfo, err = majSoul.FastTestClient.AuthGame(ctx, &message.ReqAuthGame{
+			AccountId: gameState.account.AccountId,
+			Token:     gameState.connectToken,
+			GameUuid:  gameState.gameUuid,
 		})
 		if err != nil {
 			logger.Error("majsoul NotifyRoomGameStart AuthGame error: ", zap.Error(err))
 			return
 		}
 	}
-	game.connectToken = notifyRoomGameStart.ConnectToken
-	game.gameUuid = notifyRoomGameStart.GameUuid
+	gameState.connectToken = notifyRoomGameStart.ConnectToken
+	gameState.gameUuid = notifyRoomGameStart.GameUuid
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
@@ -142,20 +142,20 @@ func (game *Game) NotifyRoomGameStart(majSoul *majsoul.MajSoul, notifyRoomGameSt
 	}
 
 	// 记录自己的座位号
-	for i, uid := range game.gameInfo.SeatList {
-		if uid == game.account.AccountId {
-			game.seat = uint32(i)
+	for i, uid := range gameState.gameInfo.SeatList {
+		if uid == gameState.account.AccountId {
+			gameState.seat = uint32(i)
 			break
 		}
 	}
 }
 
 // ActionMJStart 游戏开始
-func (Game) ActionMJStart(majSoul *majsoul.MajSoul, actionMJStart *message.ActionMJStart) {
+func (GameState) ActionMJStart(majSoul *majsoul.MajSoul, actionMJStart *message.ActionMJStart) {
 }
 
 // ActionNewRound 回合开始
-func (Game) ActionNewRound(majSoul *majsoul.MajSoul, action *message.ActionNewRound) {
+func (GameState) ActionNewRound(majSoul *majsoul.MajSoul, action *message.ActionNewRound) {
 	// 如果是庄家
 	if len(action.Tiles) != 14 {
 		return
@@ -178,9 +178,9 @@ func (Game) ActionNewRound(majSoul *majsoul.MajSoul, action *message.ActionNewRo
 }
 
 // ActionDealTile 摸牌
-func (game *Game) ActionDealTile(majSoul *majsoul.MajSoul, action *message.ActionDealTile) {
+func (gameState *GameState) ActionDealTile(majSoul *majsoul.MajSoul, action *message.ActionDealTile) {
 	// 如果不是自己摸牌
-	if action.Seat != game.seat {
+	if action.Seat != gameState.seat {
 		return
 	}
 
@@ -206,7 +206,7 @@ func (game *Game) ActionDealTile(majSoul *majsoul.MajSoul, action *message.Actio
 }
 
 // ActionDiscardTile 打牌
-func (Game) ActionDiscardTile(majSoul *majsoul.MajSoul, action *message.ActionDiscardTile) {
+func (GameState) ActionDiscardTile(majSoul *majsoul.MajSoul, action *message.ActionDiscardTile) {
 	if action.Operation != nil && len(action.Operation.OperationList) != 0 {
 		for _, operation := range action.Operation.OperationList {
 			switch operation.Type {
@@ -241,7 +241,7 @@ func (Game) ActionDiscardTile(majSoul *majsoul.MajSoul, action *message.ActionDi
 }
 
 // ActionChiPengGang 吃碰杠的通知
-func (Game) ActionChiPengGang(majSoul *majsoul.MajSoul, action *message.ActionChiPengGang) {
+func (GameState) ActionChiPengGang(majSoul *majsoul.MajSoul, action *message.ActionChiPengGang) {
 	switch action.Type {
 	case majsoul.NotifyChi:
 	case majsoul.NotifyPon:
@@ -250,20 +250,20 @@ func (Game) ActionChiPengGang(majSoul *majsoul.MajSoul, action *message.ActionCh
 }
 
 // ActionAnGangAddGang 暗杠和加杠的通知
-func (Game) ActionAnGangAddGang(majSoul *majsoul.MajSoul, action *message.ActionAnGangAddGang) {
+func (GameState) ActionAnGangAddGang(majSoul *majsoul.MajSoul, action *message.ActionAnGangAddGang) {
 	switch action.Type {
 	case majsoul.NotifyAnKan:
 	case majsoul.NotifyKaKan:
 	}
 }
 
-func (Game) ActionHule(majSoul *majsoul.MajSoul, action *message.ActionHule) {
+func (GameState) ActionHule(majSoul *majsoul.MajSoul, action *message.ActionHule) {
 }
 
-func (Game) ActionLiuJu(majSoul *majsoul.MajSoul, action *message.ActionLiuJu) {
+func (GameState) ActionLiuJu(majSoul *majsoul.MajSoul, action *message.ActionLiuJu) {
 }
 
-func (Game) ActionNoTile(majSoul *majsoul.MajSoul, action *message.ActionNoTile) {
+func (GameState) ActionNoTile(majSoul *majsoul.MajSoul, action *message.ActionNoTile) {
 }
 
 func main() {
@@ -288,25 +288,25 @@ func main() {
 
 	logger.Debug("ServerAddress", zap.Reflect("ServerAddress", majSoul.ServerAddress))
 
-	var game Game
+	var gameState GameState
 
 	majSoul.Handle(
-		game.NotifyClientMessage,
-		game.NotifyFriendViewChange,
-		game.NotifyEndGameVote,
-		game.NotifyRoomGameStart,
-		game.ActionMJStart,
-		game.ActionNewRound,
-		game.ActionDealTile,
-		game.ActionDiscardTile,
-		game.ActionChiPengGang,
-		game.ActionAnGangAddGang,
-		game.ActionHule,
-		game.ActionLiuJu,
-		game.ActionNoTile,
+		gameState.NotifyClientMessage,
+		gameState.NotifyFriendViewChange,
+		gameState.NotifyEndGameVote,
+		gameState.NotifyRoomGameStart,
+		gameState.ActionMJStart,
+		gameState.ActionNewRound,
+		gameState.ActionDealTile,
+		gameState.ActionDiscardTile,
+		gameState.ActionChiPengGang,
+		gameState.ActionAnGangAddGang,
+		gameState.ActionHule,
+		gameState.ActionLiuJu,
+		gameState.ActionNoTile,
 	)
 
-	{
+	{ // 登录
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		resLogin, err := majSoul.Login(ctx, account, password)
@@ -314,12 +314,24 @@ func main() {
 			panic(err)
 		}
 		if resLogin.Error == nil {
-			game.account = resLogin.Account
-			game.accessToken = resLogin.AccessToken
+			gameState.account = resLogin.Account
+			gameState.accessToken = resLogin.AccessToken
 			if resLogin.GameInfo != nil {
-				game.connectToken = resLogin.GameInfo.ConnectToken
-				game.gameUuid = resLogin.GameInfo.GameUuid
+				gameState.connectToken = resLogin.GameInfo.ConnectToken
+				gameState.gameUuid = resLogin.GameInfo.GameUuid
 			}
+		}
+
+		UpdateLoginInfo(majSoul)
+
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			friendList, err := majSoul.LobbyClient.FetchFriendList(ctx, &message.ReqCommon{})
+			if err != nil {
+				return
+			}
+			logger.Debug("", zap.Reflect("friendList", friendList))
 		}
 
 		// 重连到正在进行对局的游戏中
@@ -336,7 +348,7 @@ func main() {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 				defer cancel()
 				var err error
-				game.gameInfo, err = majSoul.FastTestClient.AuthGame(ctx, &message.ReqAuthGame{
+				gameState.gameInfo, err = majSoul.FastTestClient.AuthGame(ctx, &message.ReqAuthGame{
 					AccountId: resLogin.Account.AccountId,
 					Token:     resLogin.GameInfo.ConnectToken,
 					GameUuid:  resLogin.GameInfo.GameUuid,
@@ -346,9 +358,9 @@ func main() {
 				}
 			}
 
-			for i, uid := range game.gameInfo.SeatList {
+			for i, uid := range gameState.gameInfo.SeatList {
 				if uid == resLogin.Account.AccountId {
-					game.seat = uint32(i)
+					gameState.seat = uint32(i)
 					break
 				}
 			}
@@ -396,14 +408,14 @@ func main() {
 	}
 
 	majSoul.OnGatewayReconnect(func() {
-		if len(game.accessToken) == 0 {
+		if len(gameState.accessToken) == 0 {
 			panic(fmt.Sprintf(""))
 		}
 		var err error
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
-			_, err = majSoul.LobbyClient.Oauth2Check(ctx, &message.ReqOauth2Check{AccessToken: game.accessToken})
+			_, err = majSoul.LobbyClient.Oauth2Check(ctx, &message.ReqOauth2Check{AccessToken: gameState.accessToken})
 			if err != nil {
 				panic(fmt.Sprintf("gateway Oauth2Check error %v", err))
 			}
@@ -449,9 +461,9 @@ func main() {
 			defer cancel()
 			var err error
 			_, err = majSoul.FastTestClient.AuthGame(ctx, &message.ReqAuthGame{
-				AccountId: game.account.AccountId,
-				Token:     game.connectToken,
-				GameUuid:  game.gameUuid,
+				AccountId: gameState.account.AccountId,
+				Token:     gameState.connectToken,
+				GameUuid:  gameState.gameUuid,
 			})
 			if err != nil {
 				logger.Error("majSoul AuthGame error.", zap.Error(err))
@@ -507,4 +519,215 @@ func main() {
 
 	println("Start.")
 	select {}
+}
+
+func UpdateLoginInfo(majSoul *majsoul.MajSoul) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	resFetchLastPrivacy, err := majSoul.LobbyClient.FetchLastPrivacy(ctx, &message.ReqFetchLastPrivacy{})
+	if err != nil {
+		logger.Error("majSoul FetchLastPrivacy error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchLastPrivacy.", zap.Reflect("resFetchLastPrivacy", resFetchLastPrivacy))
+
+	resFetchServerTime, err := majSoul.LobbyClient.FetchServerTime(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchServerTime error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchServerTime.", zap.Reflect("resFetchServerTime", resFetchServerTime))
+
+	resServerSettings, err := majSoul.LobbyClient.FetchServerSettings(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchServerSettings error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchServerSettings.", zap.Reflect("resServerSettings", resServerSettings))
+
+	resConnectionInfo, err := majSoul.LobbyClient.FetchConnectionInfo(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchConnectionInfo error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchConnectionInfo.", zap.Reflect("resConnectionInfo", resConnectionInfo))
+
+	resClientValue, err := majSoul.LobbyClient.FetchClientValue(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchClientValue error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchClientValue.", zap.Reflect("resClientValue", resClientValue))
+
+	resFriendList, err := majSoul.LobbyClient.FetchFriendList(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchFriendList error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchFriendList.", zap.Reflect("resFriendList", resFriendList))
+
+	resFriendApplyList, err := majSoul.LobbyClient.FetchFriendApplyList(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchFriendApplyList error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchFriendApplyList.", zap.Reflect("resFriendApplyList", resFriendApplyList))
+
+	resFetchrecentFriend, err := majSoul.LobbyClient.FetchRecentFriend(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchRecentFriend.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchRecentFriend.", zap.Reflect("resFetchrecentFriend", resFetchrecentFriend))
+
+	resMailInfo, err := majSoul.LobbyClient.FetchMailInfo(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchMailInfo error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchMailInfo.", zap.Reflect("resMailInfo", resMailInfo))
+
+	resDailyTask, err := majSoul.LobbyClient.FetchDailyTask(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchDailyTask error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchDailyTask.", zap.Reflect("resDailyTask", resDailyTask))
+
+	resReviveCoinInfo, err := majSoul.LobbyClient.FetchReviveCoinInfo(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchReviveCoinInfo error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchReviveCoinInfo.", zap.Reflect("resReviveCoinInfo", resReviveCoinInfo))
+
+	resTitleList, err := majSoul.LobbyClient.FetchTitleList(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchTitleList error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchTitleList.", zap.Reflect("resTitleList", resTitleList))
+
+	resBagInfo, err := majSoul.LobbyClient.FetchBagInfo(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchBagInfo error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchBagInfo.", zap.Reflect("resBagInfo", resBagInfo))
+
+	resShopInfo, err := majSoul.LobbyClient.FetchShopInfo(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchShopInfo error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchShopInfo.", zap.Reflect("resShopInfo", resShopInfo))
+
+	resFetchShopInterval, err := majSoul.LobbyClient.FetchShopInterval(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchShopInterval error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchShopInterval.", zap.Reflect("resFetchShopInterval", resFetchShopInterval))
+
+	resActivityList, err := majSoul.LobbyClient.FetchActivityList(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchActivityList error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchActivityList.", zap.Reflect("resActivityList", resActivityList))
+
+	resAccountActivityData, err := majSoul.LobbyClient.FetchAccountActivityData(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchAccountActivityData error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchAccountActivityData.", zap.Reflect("resAccountActivityData", resAccountActivityData))
+
+	resFetchActivityInterval, err := majSoul.LobbyClient.FetchActivityInterval(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchActivityInterval error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchActivityInterval.", zap.Reflect("resFetchActivityInterval", resFetchActivityInterval))
+
+	resActivityBuff, err := majSoul.LobbyClient.FetchActivityBuff(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchActivityBuff error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchActivityBuff.", zap.Reflect("resActivityBuff", resActivityBuff))
+
+	resVipReward, err := majSoul.LobbyClient.FetchVipReward(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchVipReward error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchVipReward.", zap.Reflect("resVipReward", resVipReward))
+
+	resMonthTicketInfo, err := majSoul.LobbyClient.FetchMonthTicketInfo(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchMonthTicketInfo error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchMonthTicketInfo.", zap.Reflect("resMonthTicketInfo", resMonthTicketInfo))
+
+	resAchievement, err := majSoul.LobbyClient.FetchAchievement(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchAchievement error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchAchievement.", zap.Reflect("resAchievement", resAchievement))
+
+	resCommentSetting, err := majSoul.LobbyClient.FetchCommentSetting(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchCommentSetting error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchCommentSetting.", zap.Reflect("resCommentSetting", resCommentSetting))
+
+	resAccountSettings, err := majSoul.LobbyClient.FetchAccountSettings(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchAccountSettings error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchAccountSettings.", zap.Reflect("resAccountSettings", resAccountSettings))
+
+	resModNicknameTime, err := majSoul.LobbyClient.FetchModNicknameTime(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchModNicknameTime error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchModNicknameTime.", zap.Reflect("resModNicknameTime", resModNicknameTime))
+
+	resMisc, err := majSoul.LobbyClient.FetchMisc(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchMisc error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchMisc.", zap.Reflect("resMisc", resMisc))
+
+	resAnnouncement, err := majSoul.LobbyClient.FetchAnnouncement(ctx, &message.ReqFetchAnnouncement{})
+	if err != nil {
+		logger.Error("majSoul FetchAnnouncement error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchAnnouncement.", zap.Reflect("resAnnouncement", resAnnouncement))
+
+	// 写错了吧 req?
+	reqRollingNotice, err := majSoul.LobbyClient.FetchRollingNotice(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul FetchRollingNotice error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul FetchRollingNotice.", zap.Reflect("reqRollingNotice", reqRollingNotice))
+
+	resCommon, err := majSoul.LobbyClient.LoginSuccess(ctx, &message.ReqCommon{})
+	if err != nil {
+		logger.Error("majSoul LoginSuccess error.", zap.Error(err))
+		return err
+	}
+	logger.Info("majSoul LoginSuccess.", zap.Reflect("resCommon", resCommon))
+
+	return nil
 }

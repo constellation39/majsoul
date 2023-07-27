@@ -31,7 +31,7 @@ Here is a simple example of how to use this library to interact with the Majsoul
 package main
 
 import (
-	"github.com/username/majsoul"
+	"github.com/constellation39/majsoul"
 )
 
 func main() {
