@@ -231,7 +231,7 @@ func (majSoul *MajSoul) heatbeat() {
 			if majSoul.fastTestClientConn != nil {
 				continue
 			}
-			if majSoul.lobbyClientConn == nil {
+			if majSoul.lobbyClientConn == nil || majSoul.LobbyClient == nil {
 				continue
 			}
 			{
@@ -243,7 +243,7 @@ func (majSoul *MajSoul) heatbeat() {
 				}
 			}
 		case <-t2.C:
-			if majSoul.fastTestClientConn == nil {
+			if majSoul.fastTestClientConn == nil || majSoul.FastTestClient == nil {
 				continue
 			}
 			{
