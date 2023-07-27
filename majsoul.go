@@ -53,12 +53,12 @@ type MajSoul struct {
 	Request *network.Request // HTTP request sent to Majsoul
 	Version *Version         // Current version number
 
-	message.LobbyClient                      // LobbyClient is the interface for interacting with the Majsoul lobby
-	message.FastTestClient                   // FastTestClient is the interface for interacting with the Majsoul game table
-	lobbyClientConn        *network.WsClient // Connection used by LobbyClient
-	fastTestClientConn     *network.WsClient // Connection used by FastTestClient
-	ServerAddress          *ServerAddress    // Server address being used
-	UUID                   string            // UUID
+	LobbyClient        message.LobbyClient    // LobbyClient is the interface for interacting with the Majsoul lobby
+	FastTestClient     message.FastTestClient // FastTestClient is the interface for interacting with the Majsoul game table
+	lobbyClientConn    *network.WsClient      // Connection used by LobbyClient
+	fastTestClientConn *network.WsClient      // Connection used by FastTestClient
+	ServerAddress      *ServerAddress         // Server address being used
+	UUID               string                 // UUID
 
 	handleMap                  map[string]*subscribe // Map of registered addresses
 	onGatewayReconnectCallBack func()                // Callback for gateway server reconnection
@@ -237,7 +237,7 @@ func (majSoul *MajSoul) heatbeat() {
 			{
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 				defer cancel()
-				_, err = majSoul.Heatbeat(ctx, &message.ReqHeatBeat{})
+				_, err = majSoul.LobbyClient.Heatbeat(ctx, &message.ReqHeatBeat{})
 				if err != nil {
 					logger.Error("gateway heatbeat error", zap.Error(err))
 				}
@@ -249,7 +249,7 @@ func (majSoul *MajSoul) heatbeat() {
 			{
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 				defer cancel()
-				_, err = majSoul.CheckNetworkDelay(ctx, &message.ReqCommon{})
+				_, err = majSoul.FastTestClient.CheckNetworkDelay(ctx, &message.ReqCommon{})
 				if err != nil {
 					logger.Error("game checkNetworkDelay error", zap.Error(err))
 				}

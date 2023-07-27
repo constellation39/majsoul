@@ -9,6 +9,7 @@ import (
 	"github.com/constellation39/majsoul/message"
 	"go.uber.org/zap"
 	"math/rand"
+	"os"
 	"time"
 )
 
@@ -63,7 +64,7 @@ func (Game) NotifyClientMessage(majSoul *majsoul.MajSoul, notifyClientMessage *m
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		// 加入房间
-		_, err = majSoul.JoinRoom(ctx, &message.ReqJoinRoom{
+		_, err = majSoul.LobbyClient.JoinRoom(ctx, &message.ReqJoinRoom{
 			RoomId:              invitationRoom.RoomID,
 			ClientVersionString: majSoul.Version.Web(),
 		})
@@ -79,7 +80,7 @@ func (Game) NotifyClientMessage(majSoul *majsoul.MajSoul, notifyClientMessage *m
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		// 准备
-		_, err = majSoul.ReadyPlay(ctx, &message.ReqRoomReady{Ready: true})
+		_, err = majSoul.LobbyClient.ReadyPlay(ctx, &message.ReqRoomReady{Ready: true})
 		if err != nil {
 			logger.Error("ReadyPlay", zap.Error(err))
 			return
@@ -96,7 +97,7 @@ func (Game) NotifyEndGameVote(majSoul *majsoul.MajSoul, notifyEndGameVote *messa
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		_, err := majSoul.VoteGameEnd(ctx, &message.ReqVoteGameEnd{Yes: true})
+		_, err := majSoul.FastTestClient.VoteGameEnd(ctx, &message.ReqVoteGameEnd{Yes: true})
 		if err != nil {
 			logger.Error("VoteGameEnd", zap.Error(err))
 		}
@@ -118,7 +119,7 @@ func (game *Game) NotifyRoomGameStart(majSoul *majsoul.MajSoul, notifyRoomGameSt
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		var err error
-		game.gameInfo, err = majSoul.AuthGame(ctx, &message.ReqAuthGame{
+		game.gameInfo, err = majSoul.FastTestClient.AuthGame(ctx, &message.ReqAuthGame{
 			AccountId: game.account.AccountId,
 			Token:     game.connectToken,
 			GameUuid:  game.gameUuid,
@@ -133,7 +134,7 @@ func (game *Game) NotifyRoomGameStart(majSoul *majsoul.MajSoul, notifyRoomGameSt
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		_, err := majSoul.EnterGame(ctx, &message.ReqCommon{})
+		_, err := majSoul.FastTestClient.EnterGame(ctx, &message.ReqCommon{})
 		if err != nil {
 			logger.Error("majsoul NotifyRoomGameStart EnterGame error:", zap.Error(err))
 			return
@@ -164,7 +165,7 @@ func (Game) ActionNewRound(majSoul *majsoul.MajSoul, action *message.ActionNewRo
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		_, err := majSoul.InputOperation(ctx, &message.ReqSelfOperation{
+		_, err := majSoul.FastTestClient.InputOperation(ctx, &message.ReqSelfOperation{
 			Type:    majsoul.ActionDiscard,
 			Tile:    tile13,
 			Moqie:   true,
@@ -192,7 +193,7 @@ func (game *Game) ActionDealTile(majSoul *majsoul.MajSoul, action *message.Actio
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		_, err := majSoul.InputOperation(ctx, &message.ReqSelfOperation{
+		_, err := majSoul.FastTestClient.InputOperation(ctx, &message.ReqSelfOperation{
 			Type:    majsoul.ActionDiscard,
 			Tile:    action.Tile,
 			Moqie:   true,
@@ -225,7 +226,7 @@ func (Game) ActionDiscardTile(majSoul *majsoul.MajSoul, action *message.ActionDi
 					{
 						ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 						defer cancel()
-						_, err := majSoul.InputOperation(ctx, &message.ReqSelfOperation{
+						_, err := majSoul.FastTestClient.InputOperation(ctx, &message.ReqSelfOperation{
 							CancelOperation: true,
 							Timeuse:         1,
 						})
@@ -266,6 +267,16 @@ func (Game) ActionNoTile(majSoul *majsoul.MajSoul, action *message.ActionNoTile)
 }
 
 func main() {
+	account, exists := os.LookupEnv("account")
+	if !exists {
+		panic("account is required.")
+	}
+
+	password, exists := os.LookupEnv("password")
+	if !exists {
+		panic("account is required.")
+	}
+
 	sync := logger.Init()
 	defer sync()
 
@@ -298,7 +309,7 @@ func main() {
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		resLogin, err := majSoul.Login(ctx, "1601198895@qq.com", "miku39..")
+		resLogin, err := majSoul.Login(ctx, account, password)
 		if err != nil {
 			panic(err)
 		}
@@ -325,7 +336,7 @@ func main() {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 				defer cancel()
 				var err error
-				game.gameInfo, err = majSoul.AuthGame(ctx, &message.ReqAuthGame{
+				game.gameInfo, err = majSoul.FastTestClient.AuthGame(ctx, &message.ReqAuthGame{
 					AccountId: resLogin.Account.AccountId,
 					Token:     resLogin.GameInfo.ConnectToken,
 					GameUuid:  resLogin.GameInfo.GameUuid,
@@ -345,7 +356,7 @@ func main() {
 			{
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 				defer cancel()
-				if resSyncGame, err := majSoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
+				if resSyncGame, err := majSoul.FastTestClient.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
 					logger.Error("majSoul SyncGame error.", zap.Error(err))
 				} else {
 					logger.Debug("majSoul SyncGame.", zap.Reflect("resSyncGame", resSyncGame))
@@ -355,7 +366,7 @@ func main() {
 			{
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 				defer cancel()
-				if _, err := majSoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+				if _, err := majSoul.FastTestClient.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
 					logger.Error("majSoul FetchGamePlayerState error.", zap.Error(err))
 				} else {
 					logger.Debug("majSoul FetchGamePlayerState.")
@@ -365,7 +376,7 @@ func main() {
 			{
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 				defer cancel()
-				if _, err := majSoul.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
+				if _, err := majSoul.FastTestClient.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
 					logger.Error("majSoul FinishSyncGame error.", zap.Error(err))
 				} else {
 					logger.Debug("majSoul FinishSyncGame.")
@@ -375,7 +386,7 @@ func main() {
 			{
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 				defer cancel()
-				if _, err := majSoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+				if _, err := majSoul.FastTestClient.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
 					logger.Error("majSoul FetchGamePlayerState error.", zap.Error(err))
 				} else {
 					logger.Debug("majSoul FetchGamePlayerState.")
@@ -392,7 +403,7 @@ func main() {
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
-			_, err = majSoul.Oauth2Check(ctx, &message.ReqOauth2Check{AccessToken: game.accessToken})
+			_, err = majSoul.LobbyClient.Oauth2Check(ctx, &message.ReqOauth2Check{AccessToken: game.accessToken})
 			if err != nil {
 				panic(fmt.Sprintf("gateway Oauth2Check error %v", err))
 			}
@@ -401,7 +412,7 @@ func main() {
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
-			resLogin, err = majSoul.Oauth2Login(ctx, &message.ReqOauth2Login{
+			resLogin, err = majSoul.LobbyClient.Oauth2Login(ctx, &message.ReqOauth2Login{
 				AccessToken: resLogin.AccessToken,
 				Device: &message.ClientDeviceInfo{
 					Platform:       "pc",
@@ -437,7 +448,7 @@ func main() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
 			var err error
-			_, err = majSoul.AuthGame(ctx, &message.ReqAuthGame{
+			_, err = majSoul.FastTestClient.AuthGame(ctx, &message.ReqAuthGame{
 				AccountId: game.account.AccountId,
 				Token:     game.connectToken,
 				GameUuid:  game.gameUuid,
@@ -451,7 +462,7 @@ func main() {
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
-			resSyncGame, err := majSoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"})
+			resSyncGame, err := majSoul.FastTestClient.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"})
 			if err != nil {
 				logger.Error("majSoul SyncGame error.", zap.Error(err))
 				return
@@ -463,7 +474,7 @@ func main() {
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
-			if _, err := majSoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+			if _, err := majSoul.FastTestClient.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
 				logger.Error("majSoul FetchGamePlayerState error.", zap.Error(err))
 				return
 			} else {
@@ -474,7 +485,7 @@ func main() {
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
-			if _, err := majSoul.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
+			if _, err := majSoul.FastTestClient.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
 				logger.Error("majSoul FinishSyncGame error.", zap.Error(err))
 				return
 			} else {
@@ -485,7 +496,7 @@ func main() {
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			defer cancel()
-			if _, err := majSoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+			if _, err := majSoul.FastTestClient.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
 				logger.Error("majSoul FetchGamePlayerState error.", zap.Error(err))
 				return
 			} else {
