@@ -8,6 +8,7 @@ import (
 	"math/rand"
 )
 
+// HashPassword It returns the hex encoded string of the HMAC.
 func HashPassword(password string) string {
 	hash := hmac.New(sha256.New, []byte("lailai"))
 	hash.Write([]byte(password))
@@ -16,6 +17,7 @@ func HashPassword(password string) string {
 
 var keys = []int{0x84, 0x5e, 0x4e, 0x42, 0x39, 0xa2, 0x1f, 0x60, 0x1c}
 
+// DecodeActionPrototype modifies the Data field of a given
 func DecodeActionPrototype(actionPrototype *message.ActionPrototype) {
 	for i := 0; i < len(actionPrototype.Data); i++ {
 		u := (23 ^ len(actionPrototype.Data)) + 5*i + keys[i%len(keys)]&255
@@ -23,6 +25,7 @@ func DecodeActionPrototype(actionPrototype *message.ActionPrototype) {
 	}
 }
 
+// UUID generates a pseudo-random UUID-like string.
 func UUID() string {
 	const charSet = "0123456789abcdefghijklmnopqrstuvwxyz"
 	csl := len(charSet)

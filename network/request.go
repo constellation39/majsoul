@@ -13,6 +13,7 @@ const (
 	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54"
 )
 
+// Request is a struct that helps in sending network requests.
 type Request struct {
 	Host    string
 	header  http.Header
@@ -20,37 +21,17 @@ type Request struct {
 	rwMutex sync.RWMutex
 }
 
-func NewRequest(hostAddress string, client http.Client) *Request {
+// NewRequest creates a new Request object.
+func NewRequest(hostAddress string, header http.Header, client http.Client) *Request {
 	r := &Request{
 		Host:   hostAddress,
-		header: http.Header{},
+		header: header,
 		client: client,
 	}
-	//jar, _ := cookiejar.New(nil)
-	//r := &Request{
-	//	Host:   hostAddr,
-	//	header: http.Header{},
-	//	client: http.Client{
-	//		Jar:     jar,
-	//		Timeout: time.Second * 5,
-	//	},
-	//}
-	//if len(proxyAddr) > 0 {
-	//	proxy := func(_ *http.Request) (*url.URL, error) {
-	//		return url.Parse(proxyAddr)
-	//	}
-	//	transport := &http.Transport{Proxy: proxy}
-	//	r.client.Transport = transport
-	//}
-	r.AddHeader("user-agent", UserAgent)
-	r.AddHeader("accept", "application/json, text/plain, */*")
-	r.AddHeader("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
-	r.AddHeader("cache-control", "no-cache")
-	r.AddHeader("content-type", "application/json;charset=UTF-8")
-	r.AddHeader("dnt", "1")
 	return r
 }
 
+// Get sends a GET request to the specified path.
 func (request *Request) Get(path string) ([]byte, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s", request.Host, path), nil)
 	if err != nil {
@@ -60,6 +41,7 @@ func (request *Request) Get(path string) ([]byte, error) {
 	return request.do(req)
 }
 
+// Post sends a POST request to the specified path with the provided body.
 func (request *Request) Post(path string, body interface{}) ([]byte, error) {
 	data, err := json.Marshal(body)
 	if err != nil {
@@ -74,6 +56,7 @@ func (request *Request) Post(path string, body interface{}) ([]byte, error) {
 	return request.do(req)
 }
 
+// do sends the request and returns the response.
 func (request *Request) do(req *http.Request) ([]byte, error) {
 	req.Header = request.header
 	res, err := request.client.Do(req)
@@ -81,27 +64,23 @@ func (request *Request) do(req *http.Request) ([]byte, error) {
 		return nil, err
 	}
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("%s", res.Status)
+		return nil, fmt.Errorf("StatusCode: %s", res.Status)
 	}
 
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(res.Body)
+	defer res.Body.Close() // Just close the body, ignore error if any.
 
 	resData, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	return resData, err
+	return resData, nil
 }
 
+// GetHeader returns the value(s) of the header for the provided key.
 func (request *Request) GetHeader(key string) ([]string, bool) {
-	request.rwMutex.Lock()
-	defer request.rwMutex.Unlock()
+	request.rwMutex.RLock()
+	defer request.rwMutex.RUnlock()
 
 	if kv, ok := request.header[key]; ok {
 		return kv, ok
@@ -109,6 +88,7 @@ func (request *Request) GetHeader(key string) ([]string, bool) {
 	return nil, false
 }
 
+// DelHeader removes the header for the provided key.
 func (request *Request) DelHeader(key string) *Request {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
@@ -118,6 +98,7 @@ func (request *Request) DelHeader(key string) *Request {
 	return request
 }
 
+// SetHeader sets the value of the header for the provided key.
 func (request *Request) SetHeader(key, value string) *Request {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
@@ -127,6 +108,7 @@ func (request *Request) SetHeader(key, value string) *Request {
 	return request
 }
 
+// AddHeader adds a new header value for the provided key.
 func (request *Request) AddHeader(key, value string) *Request {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()

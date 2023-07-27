@@ -3,17 +3,25 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/constellation39/majsoul"
 	"github.com/constellation39/majsoul/logger"
 	"github.com/constellation39/majsoul/message"
 	"go.uber.org/zap"
+	"math/rand"
 	"time"
 )
 
-type GameState struct {
+type Game struct {
+	seat         uint32
+	account      *message.Account     // 该字段应在登录成功后访问
+	gameInfo     *message.ResAuthGame // 该字段应在进入游戏桌面后访问
+	accessToken  string               // 验证身份时使用 的 token
+	connectToken string               // 重连时使用的 token
+	gameUuid     string               // 是否在游戏中
 }
 
-func (GameState) NotifyClientMessage(majSoul *majsoul.MajSoul, notifyClientMessage *message.NotifyClientMessage) {
+func (Game) NotifyClientMessage(majSoul *majsoul.MajSoul, notifyClientMessage *message.NotifyClientMessage) {
 	type DetailRule struct {
 		TimeFixed    int  `json:"time_fixed"`
 		TimeAdd      int  `json:"time_add"`
@@ -79,12 +87,182 @@ func (GameState) NotifyClientMessage(majSoul *majsoul.MajSoul, notifyClientMessa
 	}
 }
 
-func (GameState) NotifyFriendViewChange(majSoul *majsoul.MajSoul, notifyFriendViewChange *message.NotifyFriendViewChange) {
+func (Game) NotifyFriendViewChange(majSoul *majsoul.MajSoul, notifyFriendViewChange *message.NotifyFriendViewChange) {
 	logger.Debug("", zap.Reflect("notifyFriendViewChange", notifyFriendViewChange))
 }
 
-func (GameState) ActionMJStart(majSoul *majsoul.MajSoul, actionMJStart *message.ActionMJStart) {
-	logger.Debug("ActionMJStart")
+// NotifyEndGameVote 有人发起投降
+func (Game) NotifyEndGameVote(majSoul *majsoul.MajSoul, notifyEndGameVote *message.NotifyEndGameVote) {
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		_, err := majSoul.VoteGameEnd(ctx, &message.ReqVoteGameEnd{Yes: true})
+		if err != nil {
+			logger.Error("VoteGameEnd", zap.Error(err))
+		}
+	}
+}
+
+// 从等待房间进入游戏时
+func (game *Game) NotifyRoomGameStart(majSoul *majsoul.MajSoul, notifyRoomGameStart *message.NotifyRoomGameStart) {
+
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		err := majSoul.ConnGame(ctx)
+		if err != nil {
+			panic(fmt.Sprintf("conn Game server failed error %v", err))
+		}
+	}
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		var err error
+		game.gameInfo, err = majSoul.AuthGame(ctx, &message.ReqAuthGame{
+			AccountId: game.account.AccountId,
+			Token:     game.connectToken,
+			GameUuid:  game.gameUuid,
+		})
+		if err != nil {
+			logger.Error("majsoul NotifyRoomGameStart AuthGame error: ", zap.Error(err))
+			return
+		}
+	}
+	game.connectToken = notifyRoomGameStart.ConnectToken
+	game.gameUuid = notifyRoomGameStart.GameUuid
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		_, err := majSoul.EnterGame(ctx, &message.ReqCommon{})
+		if err != nil {
+			logger.Error("majsoul NotifyRoomGameStart EnterGame error:", zap.Error(err))
+			return
+		}
+	}
+
+	// 记录自己的座位号
+	for i, uid := range game.gameInfo.SeatList {
+		if uid == game.account.AccountId {
+			game.seat = uint32(i)
+			break
+		}
+	}
+}
+
+// ActionMJStart 游戏开始
+func (Game) ActionMJStart(majSoul *majsoul.MajSoul, actionMJStart *message.ActionMJStart) {
+}
+
+// ActionNewRound 回合开始
+func (Game) ActionNewRound(majSoul *majsoul.MajSoul, action *message.ActionNewRound) {
+	// 如果是庄家
+	if len(action.Tiles) != 14 {
+		return
+	}
+	tile13 := action.Tiles[13]
+	time.Sleep(time.Second * 3)
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		_, err := majSoul.InputOperation(ctx, &message.ReqSelfOperation{
+			Type:    majsoul.ActionDiscard,
+			Tile:    tile13,
+			Moqie:   true,
+			Timeuse: 1,
+		})
+		if err != nil {
+			logger.Error("InputOperation failed", zap.Error(err))
+		}
+	}
+}
+
+// ActionDealTile 摸牌
+func (game *Game) ActionDealTile(majSoul *majsoul.MajSoul, action *message.ActionDealTile) {
+	// 如果不是自己摸牌
+	if action.Seat != game.seat {
+		return
+	}
+
+	if len(action.Tile) == 0 {
+		logger.Error("摸牌是空的")
+		return
+	}
+
+	time.Sleep(time.Second * 3)
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		_, err := majSoul.InputOperation(ctx, &message.ReqSelfOperation{
+			Type:    majsoul.ActionDiscard,
+			Tile:    action.Tile,
+			Moqie:   true,
+			Timeuse: 1,
+		})
+		if err != nil {
+			logger.Error("InputOperation failed", zap.Error(err))
+		}
+	}
+}
+
+// ActionDiscardTile 打牌
+func (Game) ActionDiscardTile(majSoul *majsoul.MajSoul, action *message.ActionDiscardTile) {
+	if action.Operation != nil && len(action.Operation.OperationList) != 0 {
+		for _, operation := range action.Operation.OperationList {
+			switch operation.Type {
+			case majsoul.ActionDiscard:
+			case majsoul.ActionChi:
+			case majsoul.ActionPon:
+			case majsoul.ActionAnKAN:
+			case majsoul.ActionMinKan:
+			case majsoul.ActionKaKan:
+			case majsoul.ActionRiichi:
+			case majsoul.ActionTsumo:
+			case majsoul.ActionRon:
+			case majsoul.ActionKuku:
+			case majsoul.ActionKita:
+			case majsoul.ActionPass:
+				if action.Operation != nil {
+					{
+						ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+						defer cancel()
+						_, err := majSoul.InputOperation(ctx, &message.ReqSelfOperation{
+							CancelOperation: true,
+							Timeuse:         1,
+						})
+						if err != nil {
+							logger.Error("InputOperation failed", zap.Error(err))
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// ActionChiPengGang 吃碰杠的通知
+func (Game) ActionChiPengGang(majSoul *majsoul.MajSoul, action *message.ActionChiPengGang) {
+	switch action.Type {
+	case majsoul.NotifyChi:
+	case majsoul.NotifyPon:
+	case majsoul.NotifyKan:
+	}
+}
+
+// ActionAnGangAddGang 暗杠和加杠的通知
+func (Game) ActionAnGangAddGang(majSoul *majsoul.MajSoul, action *message.ActionAnGangAddGang) {
+	switch action.Type {
+	case majsoul.NotifyAnKan:
+	case majsoul.NotifyKaKan:
+	}
+}
+
+func (Game) ActionHule(majSoul *majsoul.MajSoul, action *message.ActionHule) {
+}
+
+func (Game) ActionLiuJu(majSoul *majsoul.MajSoul, action *message.ActionLiuJu) {
+}
+
+func (Game) ActionNoTile(majSoul *majsoul.MajSoul, action *message.ActionNoTile) {
 }
 
 func main() {
@@ -92,17 +270,230 @@ func main() {
 	defer sync()
 
 	majSoul := majsoul.NewMajSoul(&majsoul.Config{ProxyAddress: ""})
-	majSoul.LookupGateway(context.Background(), majsoul.ServerAddressList)
-
-	var gameState GameState
-
-	majSoul.Handle(gameState.NotifyClientMessage, gameState.NotifyClientMessage, gameState.ActionMJStart)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	_, err := majSoul.Login(ctx, "1601198895@qq.com", "miku39..")
+	err := majSoul.LookupGateway(context.Background(), majsoul.ServerAddressList)
 	if err != nil {
 		panic(err)
 	}
+
+	logger.Debug("ServerAddress", zap.Reflect("ServerAddress", majSoul.ServerAddress))
+
+	var game Game
+
+	majSoul.Handle(
+		game.NotifyClientMessage,
+		game.NotifyFriendViewChange,
+		game.NotifyEndGameVote,
+		game.NotifyRoomGameStart,
+		game.ActionMJStart,
+		game.ActionNewRound,
+		game.ActionDealTile,
+		game.ActionDiscardTile,
+		game.ActionChiPengGang,
+		game.ActionAnGangAddGang,
+		game.ActionHule,
+		game.ActionLiuJu,
+		game.ActionNoTile,
+	)
+
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		resLogin, err := majSoul.Login(ctx, "1601198895@qq.com", "miku39..")
+		if err != nil {
+			panic(err)
+		}
+		if resLogin.Error == nil {
+			game.account = resLogin.Account
+			game.accessToken = resLogin.AccessToken
+			if resLogin.GameInfo != nil {
+				game.connectToken = resLogin.GameInfo.ConnectToken
+				game.gameUuid = resLogin.GameInfo.GameUuid
+			}
+		}
+
+		// 重连到正在进行对局的游戏中
+		if resLogin.Account != nil && resLogin.Account.RoomId != 0 {
+			{
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+				defer cancel()
+				if err := majSoul.ConnGame(ctx); err != nil {
+					logger.Error("client ConnGame error.", zap.Error(err))
+				}
+			}
+
+			{
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+				defer cancel()
+				var err error
+				game.gameInfo, err = majSoul.AuthGame(ctx, &message.ReqAuthGame{
+					AccountId: resLogin.Account.AccountId,
+					Token:     resLogin.GameInfo.ConnectToken,
+					GameUuid:  resLogin.GameInfo.GameUuid,
+				})
+				if err != nil {
+					logger.Error("client AuthGame error.", zap.Error(err))
+				}
+			}
+
+			for i, uid := range game.gameInfo.SeatList {
+				if uid == resLogin.Account.AccountId {
+					game.seat = uint32(i)
+					break
+				}
+			}
+
+			{
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+				defer cancel()
+				if resSyncGame, err := majSoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"}); err != nil {
+					logger.Error("majSoul SyncGame error.", zap.Error(err))
+				} else {
+					logger.Debug("majSoul SyncGame.", zap.Reflect("resSyncGame", resSyncGame))
+				}
+			}
+
+			{
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+				defer cancel()
+				if _, err := majSoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+					logger.Error("majSoul FetchGamePlayerState error.", zap.Error(err))
+				} else {
+					logger.Debug("majSoul FetchGamePlayerState.")
+				}
+			}
+
+			{
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+				defer cancel()
+				if _, err := majSoul.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
+					logger.Error("majSoul FinishSyncGame error.", zap.Error(err))
+				} else {
+					logger.Debug("majSoul FinishSyncGame.")
+				}
+			}
+
+			{
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+				defer cancel()
+				if _, err := majSoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+					logger.Error("majSoul FetchGamePlayerState error.", zap.Error(err))
+				} else {
+					logger.Debug("majSoul FetchGamePlayerState.")
+				}
+			}
+		}
+	}
+
+	majSoul.OnGatewayReconnect(func() {
+		if len(game.accessToken) == 0 {
+			panic(fmt.Sprintf(""))
+		}
+		var err error
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			_, err = majSoul.Oauth2Check(ctx, &message.ReqOauth2Check{AccessToken: game.accessToken})
+			if err != nil {
+				panic(fmt.Sprintf("gateway Oauth2Check error %v", err))
+			}
+		}
+		var resLogin *message.ResLogin
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			resLogin, err = majSoul.Oauth2Login(ctx, &message.ReqOauth2Login{
+				AccessToken: resLogin.AccessToken,
+				Device: &message.ClientDeviceInfo{
+					Platform:       "pc",
+					Hardware:       "pc",
+					Os:             "windows",
+					OsVersion:      "win10",
+					IsBrowser:      true,
+					Software:       "Chrome",
+					SalePlatform:   "web",
+					HardwareVendor: "",
+					ModelNumber:    "",
+					ScreenWidth:    uint32(rand.Int31n(400) + 914),
+					ScreenHeight:   uint32(rand.Int31n(200) + 1316),
+				},
+				Reconnect: false,
+				RandomKey: majSoul.UUID,
+				ClientVersion: &message.ClientVersionInfo{
+					Resource: majSoul.Version.Version,
+					Package:  "",
+				},
+				GenAccessToken:      false,
+				CurrencyPlatforms:   []uint32{2, 6, 8, 10, 11},
+				ClientVersionString: majSoul.Version.Web(),
+			})
+			if err != nil {
+				panic(fmt.Sprintf("gateway Oauth2Login error %v", err))
+			}
+		}
+	})
+
+	majSoul.OnGameReconnect(func() {
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			var err error
+			_, err = majSoul.AuthGame(ctx, &message.ReqAuthGame{
+				AccountId: game.account.AccountId,
+				Token:     game.connectToken,
+				GameUuid:  game.gameUuid,
+			})
+			if err != nil {
+				logger.Error("majSoul AuthGame error.", zap.Error(err))
+				return
+			}
+		}
+
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			resSyncGame, err := majSoul.SyncGame(ctx, &message.ReqSyncGame{RoundId: "-1"})
+			if err != nil {
+				logger.Error("majSoul SyncGame error.", zap.Error(err))
+				return
+			} else {
+				logger.Debug("majSoul SyncGame.", zap.Reflect("resSyncGame", resSyncGame))
+			}
+		}
+
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			if _, err := majSoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+				logger.Error("majSoul FetchGamePlayerState error.", zap.Error(err))
+				return
+			} else {
+				logger.Debug("majSoul FetchGamePlayerState.")
+			}
+		}
+
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			if _, err := majSoul.FinishSyncGame(ctx, &message.ReqCommon{}); err != nil {
+				logger.Error("majSoul FinishSyncGame error.", zap.Error(err))
+				return
+			} else {
+				logger.Debug("majSoul FinishSyncGame.")
+			}
+		}
+
+		{
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			defer cancel()
+			if _, err := majSoul.FetchGamePlayerState(ctx, &message.ReqCommon{}); err != nil {
+				logger.Error("majSoul FetchGamePlayerState error.", zap.Error(err))
+				return
+			} else {
+				logger.Debug("majSoul FetchGamePlayerState.")
+			}
+		}
+	})
+
+	println("Start.")
 	select {}
 }

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/constellation39/majsoul/logger"
 	"github.com/constellation39/majsoul/message"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"nhooyr.io/websocket"
@@ -15,9 +17,9 @@ import (
 )
 
 const (
-	msgTypeNotify   uint8 = 1 // 通知
-	msgTypeRequest  uint8 = 2 // 请求
-	msgTypeResponse uint8 = 3 // 回复
+	msgTypeNotify   uint8 = 1
+	msgTypeRequest  uint8 = 2
+	msgTypeResponse uint8 = 3
 )
 
 type reply struct {
@@ -33,10 +35,11 @@ type WsClient struct {
 	messageIndex       uint32
 	requestResponseMap sync.Map // map[uint8]*reply
 	notify             chan *message.Wrapper
-	reconnectHandler   func()
+	ReconnectHandler   func()
 }
 
-func NewWsClient(connAddress string, dialOptions websocket.DialOptions, reconnectHandler func()) *WsClient {
+// NewWsClient creates a new WebSocket client with the specified connection address and dial options.
+func NewWsClient(connAddress string, dialOptions websocket.DialOptions) *WsClient {
 	return &WsClient{
 		conn:               nil,
 		ConnAddress:        connAddress,
@@ -44,10 +47,11 @@ func NewWsClient(connAddress string, dialOptions websocket.DialOptions, reconnec
 		messageIndex:       0,
 		requestResponseMap: sync.Map{},
 		notify:             make(chan *message.Wrapper, 64),
-		reconnectHandler:   reconnectHandler,
+		ReconnectHandler:   nil,
 	}
 }
 
+// Connect establishes a connection to the WebSocket server. It returns an error if the connection cannot be established.
 func (client *WsClient) Connect(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -57,7 +61,7 @@ func (client *WsClient) Connect(ctx context.Context) error {
 
 	conn, _, err := websocket.Dial(ctx, client.ConnAddress, &client.DialOptions)
 	if err != nil {
-		return fmt.Errorf("majsoul ws failed to dial error %v", err)
+		return fmt.Errorf("majsoul ws failed to dial, error: %v", err)
 	}
 	conn.SetReadLimit(1048576)
 	client.conn = conn
@@ -66,14 +70,16 @@ func (client *WsClient) Connect(ctx context.Context) error {
 	return nil
 }
 
+// Receive returns a channel that can be used to receive messages from the WebSocket server.
 func (client *WsClient) Receive() <-chan *message.Wrapper {
 	return client.notify
 }
 
+// Close closes the WebSocket connection. It returns an error if the connection cannot be closed properly.
 func (client *WsClient) Close() error {
 	if client.conn != nil {
 		if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
-			return fmt.Errorf("websocket conn close error: %w", err)
+			return fmt.Errorf("error while closing websocket connection: %v", err)
 		}
 	}
 	client.conn = nil
@@ -82,41 +88,44 @@ func (client *WsClient) Close() error {
 	return nil
 }
 
+// readLoop continually reads messages from the WebSocket server and handles them according to their type.
 func (client *WsClient) readLoop() {
 	for {
 		var msgType websocket.MessageType
 		var payload []byte
 		var err error
 		{
-			ctx := context.Background()
-			ctx, cancel := context.WithTimeout(ctx, time.Minute)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
 			msgType, payload, err = client.conn.Read(ctx)
-			cancel()
 		}
 		if err != nil {
 			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 				break
 			}
 			for {
-				ctx := context.Background()
-				ctx, cancel := context.WithTimeout(ctx, time.Second*5)
-				err = client.Connect(ctx)
-				cancel()
+				{
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+					defer cancel()
+					err = client.Connect(ctx)
+				}
 				if err == nil {
-					if client.reconnectHandler != nil {
-						client.reconnectHandler()
+					if client.ReconnectHandler != nil {
+						client.ReconnectHandler()
 					}
 					break
 				}
 				time.Sleep(time.Second * 5)
 			}
-			continue
+			return
 		}
 		if msgType != websocket.MessageBinary {
-			panic(fmt.Sprintf("read message type != %d, type == %d", websocket.MessageBinary, msgType))
+			logger.Error("expected message type is not Binary", zap.Int("type", int(msgType)))
+			continue
 		}
 		if len(payload) == 0 {
-			panic(fmt.Sprintf("read message failed payload is nil"))
+			logger.Error("read message failed, payload is nil")
+			continue
 		}
 		switch payload[0] {
 		case msgTypeNotify:
@@ -124,26 +133,29 @@ func (client *WsClient) readLoop() {
 		case msgTypeResponse:
 			client.handleResponse(payload)
 		default:
-			panic(fmt.Sprintf("read message match unknown message (%d)", payload[0]))
+			logger.Error("read message matched unknown message type", zap.Int("type", int(payload[0])))
 		}
 	}
 }
 
+// handleNotify handles notify messages received from the WebSocket server.
 func (client *WsClient) handleNotify(msg []byte) {
 	wrapper := new(message.Wrapper)
 
 	err := proto.Unmarshal(msg[1:], wrapper)
 	if err != nil {
-		panic(fmt.Sprintf("notify messages unmarshal error %v", err))
+		logger.Error("error while unmarshalling notify messages", zap.String("msg", string(msg[1:])), zap.Error(err))
+		return
 	}
 
 	select {
 	case client.notify <- wrapper:
 	default:
-		panic(" notify channel is full")
+		logger.Panic("notify channel is full, unable to push new message")
 	}
 }
 
+// handleResponse handles response messages received from the WebSocket server.
 func (client *WsClient) handleResponse(msg []byte) {
 	index := (msg[2] << 7) + msg[1]
 
@@ -154,23 +166,25 @@ func (client *WsClient) handleResponse(msg []byte) {
 
 	r, ok := response.(*reply)
 	if !ok {
-		panic(fmt.Sprintf("response type (type = %+v) not proto.Message", r))
+		logger.Error("response type is not proto.Message", zap.Reflect("response", response))
 	}
 
 	wrapper := new(message.Wrapper)
 	err := proto.Unmarshal(msg[3:], wrapper)
 	if err != nil {
-		panic(fmt.Sprintf("response message unmarshal failed error %v", err))
+		logger.Error("error while unmarshal response message", zap.String("msg", string(msg[3:])))
+
 	}
 
 	err = proto.Unmarshal(wrapper.Data, r.out)
 	if err != nil {
-		panic(fmt.Sprintf("response message unmarshal failed error %v", err))
+		logger.Error("error while unmarshal wrapper data", zap.String("data", string(wrapper.Data)))
 	}
 
 	close(r.wait)
 }
 
+// Invoke sends a request to the WebSocket server and waits for the response.
 func (client *WsClient) Invoke(ctx context.Context, method string, in interface{}, out interface{}, _ ...grpc.CallOption) error {
 	tokens := strings.Split(method, "/")
 	api := strings.Join(tokens, ".")
@@ -184,12 +198,13 @@ func (client *WsClient) Invoke(ctx context.Context, method string, in interface{
 	return client.recvMsg(ctx, r)
 }
 
+// sendMsg sends a message to the WebSocket server. It returns an error if the message cannot be sent.
 func (client *WsClient) sendMsg(ctx context.Context, api string, in proto.Message) (_ *reply, err error) {
 	var body []byte
 
 	body, err = proto.Marshal(in)
 	if err != nil {
-		return nil, fmt.Errorf("majsoul ws failed to marshal message: %v, error: %w", in, err)
+		return nil, fmt.Errorf("failed to marshal ws message: %v, error: %w", in, err)
 	}
 
 	wrapper := &message.Wrapper{
@@ -199,7 +214,7 @@ func (client *WsClient) sendMsg(ctx context.Context, api string, in proto.Messag
 
 	body, err = proto.Marshal(wrapper)
 	if err != nil {
-		return nil, fmt.Errorf("majsoul ws failed to marshal wrapper message: %v, error: %w", wrapper, err)
+		return nil, fmt.Errorf("failed to marshal ws wrapper message: %v, error: %w", wrapper, err)
 	}
 
 	index := atomic.LoadUint32(&client.messageIndex)
@@ -231,12 +246,13 @@ func (client *WsClient) sendMsg(ctx context.Context, api string, in proto.Messag
 	}
 
 	if _, ok := client.requestResponseMap.LoadOrStore(r.index, r); ok {
-		return nil, fmt.Errorf("majsoul ws request index %d already exists", r.index)
+		return nil, fmt.Errorf("ws request with index %d already exists", r.index)
 	}
 
 	return r, nil
 }
 
+// recvMsg waits for a response message from the WebSocket server. It returns an error if the response is not received within the context's deadline.
 func (client *WsClient) recvMsg(ctx context.Context, reply *reply) error {
 	defer client.requestResponseMap.Delete(reply.index)
 	select {
@@ -247,6 +263,7 @@ func (client *WsClient) recvMsg(ctx context.Context, reply *reply) error {
 	return nil
 }
 
+// NewStream is not implemented in this client.
 func (client *WsClient) NewStream(context.Context, *grpc.StreamDesc, string, ...grpc.CallOption) (grpc.ClientStream, error) {
-	panic("implement me")
+	return nil, fmt.Errorf("method not implemented")
 }

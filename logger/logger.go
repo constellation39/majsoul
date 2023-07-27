@@ -1,33 +1,35 @@
 package logger
 
 import (
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"log"
 	"runtime"
 	"sync/atomic"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
+// Global variables for configuration and state maintenance
 var (
-	development   bool = false
-	logger        *zap.Logger
-	atomicLevel   = zap.NewAtomicLevelAt(zapcore.DebugLevel)
-	currentConfig zap.Config
-	closeFlag     int32
+	development   bool                                       = false // Whether it is in development mode
+	logger        *zap.Logger                                        // Log object from zap library
+	atomicLevel   = zap.NewAtomicLevelAt(zapcore.DebugLevel)         // Log level
+	currentConfig zap.Config                                         // Configuration object from zap library
+	closeFlag     int32                                              // Close flag
 )
 
+// Init initializes the logger and returns a Sync function for synchronizing log records
 func Init() func() {
-	SetOutput("stdout")
-	SetErrorOutput("stderr")
-	EnableDevelopment()
-	return Sync
+	SetOutput("stdout")      // Set log output to console
+	SetErrorOutput("stderr") // Set error log output to console error output
+	EnableDevelopment()      // Enable development mode
+	return Sync              // Return Sync function for synchronizing log records
 }
 
+// init updates the core configuration of logger when the package is initialized
 func init() {
 	currentConfig = zap.Config{
 		Level:             atomicLevel,
-		Development:       false,
+		Development:       development,
 		DisableCaller:     false,
 		DisableStacktrace: false,
 		Sampling: &zap.SamplingConfig{
@@ -43,30 +45,31 @@ func init() {
 	updateLoggerCore()
 }
 
-// EnableDevelopment 启动开发模式
+// EnableDevelopment enables development mode
 func EnableDevelopment() {
 	development = true
 	updateLoggerCore()
 }
 
-// EnableProduction 启动生产模式
+// EnableProduction enables production mode
 func EnableProduction() {
 	development = false
 	updateLoggerCore()
 }
 
-// SetOutput 设置日志输出到控制台
+// SetOutput sets the log output to the specified path
 func SetOutput(output ...string) {
 	currentConfig.OutputPaths = output
 	updateLoggerCore()
 }
 
-// SetErrorOutput 设置日志输出到文件
+// SetErrorOutput sets the error log output to the specified path
 func SetErrorOutput(errorOutput ...string) {
 	currentConfig.ErrorOutputPaths = errorOutput
 	updateLoggerCore()
 }
 
+// updateLoggerCore updates the core configuration of the zap library, including log level, time format, caller information, etc.
 func updateLoggerCore() {
 	if development {
 		atomicLevel.SetLevel(zap.DebugLevel)
@@ -91,6 +94,7 @@ func updateLoggerCore() {
 	}
 }
 
+// Sync synchronizes log records to ensure that all logs are output
 func Sync() {
 	if atomic.LoadInt32(&closeFlag) == 1 {
 		atomic.CompareAndSwapInt32(&closeFlag, 0, 1)
@@ -102,24 +106,37 @@ func Sync() {
 	}
 }
 
+// Debug records Debug level logs
 func Debug(msg string, fields ...zap.Field) {
 	logger.Debug(msg, fields...)
 }
+
+// Info records Info level logs
 func Info(msg string, fields ...zap.Field) {
 	logger.Info(msg, fields...)
 }
+
+// Warn records Warn level logs
 func Warn(msg string, fields ...zap.Field) {
 	logger.Warn(msg, fields...)
 }
+
+// Error records Error level logs
 func Error(msg string, fields ...zap.Field) {
 	logger.Error(msg, fields...)
 }
+
+// DPanic records DPanic level logs
 func DPanic(msg string, fields ...zap.Field) {
 	logger.DPanic(msg, fields...)
 }
+
+// Panic records Panic level logs
 func Panic(msg string, fields ...zap.Field) {
 	logger.Panic(msg, fields...)
 }
+
+// Fatal records Fatal level logs
 func Fatal(msg string, fields ...zap.Field) {
 	logger.Fatal(msg, fields...)
 }
