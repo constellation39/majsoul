@@ -1,4 +1,4 @@
-package majsoul
+package network
 
 import (
 	"bytes"
@@ -6,36 +6,42 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/cookiejar"
-	"net/url"
 	"sync"
-	"time"
 )
 
-type request struct {
+const (
+	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54"
+)
+
+type Request struct {
 	Host    string
 	header  http.Header
 	client  http.Client
 	rwMutex sync.RWMutex
 }
 
-func newRequest(hostAddr, proxyAddr string) *request {
-	jar, _ := cookiejar.New(nil)
-	r := &request{
-		Host:   hostAddr,
+func NewRequest(hostAddress string, client http.Client) *Request {
+	r := &Request{
+		Host:   hostAddress,
 		header: http.Header{},
-		client: http.Client{
-			Jar:     jar,
-			Timeout: time.Second * 5,
-		},
+		client: client,
 	}
-	if len(proxyAddr) > 0 {
-		proxy := func(_ *http.Request) (*url.URL, error) {
-			return url.Parse(proxyAddr)
-		}
-		transport := &http.Transport{Proxy: proxy}
-		r.client.Transport = transport
-	}
+	//jar, _ := cookiejar.New(nil)
+	//r := &Request{
+	//	Host:   hostAddr,
+	//	header: http.Header{},
+	//	client: http.Client{
+	//		Jar:     jar,
+	//		Timeout: time.Second * 5,
+	//	},
+	//}
+	//if len(proxyAddr) > 0 {
+	//	proxy := func(_ *http.Request) (*url.URL, error) {
+	//		return url.Parse(proxyAddr)
+	//	}
+	//	transport := &http.Transport{Proxy: proxy}
+	//	r.client.Transport = transport
+	//}
 	r.AddHeader("user-agent", UserAgent)
 	r.AddHeader("accept", "application/json, text/plain, */*")
 	r.AddHeader("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
@@ -45,7 +51,7 @@ func newRequest(hostAddr, proxyAddr string) *request {
 	return r
 }
 
-func (request *request) Get(path string) ([]byte, error) {
+func (request *Request) Get(path string) ([]byte, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/%s", request.Host, path), nil)
 	if err != nil {
 		return nil, err
@@ -54,7 +60,7 @@ func (request *request) Get(path string) ([]byte, error) {
 	return request.do(req)
 }
 
-func (request *request) Post(path string, body interface{}) ([]byte, error) {
+func (request *Request) Post(path string, body interface{}) ([]byte, error) {
 	data, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -68,7 +74,7 @@ func (request *request) Post(path string, body interface{}) ([]byte, error) {
 	return request.do(req)
 }
 
-func (request *request) do(req *http.Request) ([]byte, error) {
+func (request *Request) do(req *http.Request) ([]byte, error) {
 	req.Header = request.header
 	res, err := request.client.Do(req)
 	if err != nil {
@@ -93,7 +99,7 @@ func (request *request) do(req *http.Request) ([]byte, error) {
 	return resData, err
 }
 
-func (request *request) GetHeader(key string) ([]string, bool) {
+func (request *Request) GetHeader(key string) ([]string, bool) {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
 
@@ -103,7 +109,7 @@ func (request *request) GetHeader(key string) ([]string, bool) {
 	return nil, false
 }
 
-func (request *request) DelHeader(key string) *request {
+func (request *Request) DelHeader(key string) *Request {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
 
@@ -112,7 +118,7 @@ func (request *request) DelHeader(key string) *request {
 	return request
 }
 
-func (request *request) SetHeader(key, value string) *request {
+func (request *Request) SetHeader(key, value string) *Request {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
 
@@ -121,7 +127,7 @@ func (request *request) SetHeader(key, value string) *request {
 	return request
 }
 
-func (request *request) AddHeader(key, value string) *request {
+func (request *Request) AddHeader(key, value string) *Request {
 	request.rwMutex.Lock()
 	defer request.rwMutex.Unlock()
 

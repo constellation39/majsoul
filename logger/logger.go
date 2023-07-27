@@ -17,6 +17,13 @@ var (
 	closeFlag     int32
 )
 
+func Init() func() {
+	SetOutput("stdout")
+	SetErrorOutput("stderr")
+	EnableDevelopment()
+	return Sync
+}
+
 func init() {
 	currentConfig = zap.Config{
 		Level:             atomicLevel,
