@@ -96,8 +96,8 @@ func (client *WsClient) readLoop() {
 		var err error
 		{
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-			defer cancel()
 			msgType, payload, err = client.conn.Read(ctx)
+			cancel()
 		}
 		if err != nil {
 			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
@@ -106,8 +106,8 @@ func (client *WsClient) readLoop() {
 			for {
 				{
 					ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-					defer cancel()
 					err = client.Connect(ctx)
+					cancel()
 				}
 				if err == nil {
 					if client.ReconnectHandler != nil {

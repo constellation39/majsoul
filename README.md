@@ -31,18 +31,57 @@ Here is a simple example of how to use this library to interact with the Majsoul
 package main
 
 import (
-	"github.com/constellation39/majsoul"
+  "context"
+  "fmt"
+  "github.com/constellation39/majsoul"
+  "github.com/constellation39/majsoul/message"
+  "os"
+  "time"
 )
 
 func main() {
-    majSoul := majsoul.NewMajSoul(&majsoul.Config{ProxyAddress: ""})
-   {
-        ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-        defer cancel()
-        resLogin, err := majSoul.Login(ctx, account, password)
-        majSoul.Login(,"username", "password")
-    }
+  account, exists := os.LookupEnv("account")
+  if !exists {
+    panic("account is required.")
+  }
 
-	// Add your code here
+  password, exists := os.LookupEnv("password")
+  if !exists {
+    panic("password is required.")
+  }
+
+  majSoul := majsoul.NewMajSoul(&majsoul.Config{ProxyAddress: ""})
+  { 
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+    defer cancel()
+    err := majSoul.LookupGateway(ctx, majsoul.ServerAddressList)
+    if err != nil {
+      panic(err)
+    }
+  }
+
+  {
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+    defer cancel()
+    resLogin, err := majSoul.Login(ctx, account, password)
+    if err != nil {
+      panic(err)
+    }
+    if resLogin.Error != nil {
+      panic(resLogin.Error)
+    }
+  }
+
+  {
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+    defer cancel()
+    friendList, err := majSoul.LobbyClient.FetchFriendList(ctx, &message.ReqCommon{})
+    if err != nil {
+      panic(err)
+    }
+    fmt.Printf("%v", friendList)
+  }
 }
+
 ```
+[example](https://github.com/constellation39/majsoul/tree/master/example)

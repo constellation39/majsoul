@@ -236,8 +236,8 @@ func (majSoul *MajSoul) heatbeat() {
 			}
 			{
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-				defer cancel()
 				_, err = majSoul.LobbyClient.Heatbeat(ctx, &message.ReqHeatBeat{})
+				cancel()
 				if err != nil {
 					logger.Error("gateway heatbeat error", zap.Error(err))
 				}
@@ -248,8 +248,8 @@ func (majSoul *MajSoul) heatbeat() {
 			}
 			{
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-				defer cancel()
 				_, err = majSoul.FastTestClient.CheckNetworkDelay(ctx, &message.ReqCommon{})
+				cancel()
 				if err != nil {
 					logger.Error("game checkNetworkDelay error", zap.Error(err))
 				}
