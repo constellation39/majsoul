@@ -239,7 +239,7 @@ func (majSoul *MajSoul) heatbeat() {
 				defer cancel()
 				_, err = majSoul.LobbyClient.Heatbeat(ctx, &message.ReqHeatBeat{})
 				if err != nil {
-					logger.Error("gateway heatbeat error", zap.Error(err))
+					logger.Panic("gateway heatbeat error", zap.Error(err))
 				}
 			}
 		case <-t2.C:
@@ -251,7 +251,7 @@ func (majSoul *MajSoul) heatbeat() {
 				defer cancel()
 				_, err = majSoul.FastTestClient.CheckNetworkDelay(ctx, &message.ReqCommon{})
 				if err != nil {
-					logger.Error("game checkNetworkDelay error", zap.Error(err))
+					logger.Panic("game checkNetworkDelay error", zap.Error(err))
 				}
 			}
 		}
