@@ -74,13 +74,13 @@ func updateLoggerCore() {
 	if development {
 		atomicLevel.SetLevel(zap.DebugLevel)
 		developmentEncoderConfig := zap.NewDevelopmentEncoderConfig()
-		developmentEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
+		developmentEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.999")
 		developmentEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 		currentConfig.EncoderConfig = developmentEncoderConfig
 	} else {
 		atomicLevel.SetLevel(zap.ErrorLevel)
 		productionEncoderConfig := zap.NewProductionEncoderConfig()
-		productionEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.99")
+		productionEncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.999")
 		productionEncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 		currentConfig.EncoderConfig = productionEncoderConfig
 	}
