@@ -32,8 +32,8 @@ type ServerAddress struct {
 var ServerAddressList = []*ServerAddress{
 	{
 		ServerAddress:  "https://game.maj-soul.net",
-		GatewayAddress: "wss://gateway-v2.maj-soul.com/gateway",
-		GameAddress:    "wss://gateway-v2.maj-soul.com/game-gateway",
+		GatewayAddress: "wss://gateway-v2.maj-soul.net/gateway",
+		GameAddress:    "wss://gateway-v2.maj-soul.net/game-gateway",
 	},
 	{
 		ServerAddress:  "https://game.maj-soul.com",
@@ -209,7 +209,6 @@ func (majSoul *MajSoul) LookupGateway(ctx context.Context, serverAddressList []*
 			majSoul.LobbyClient = message.NewLobbyClient(majSoul.lobbyClientConn)
 		}
 
-		go majSoul.heatbeat()
 		go majSoul.readLobbyClientConn()
 
 		return nil
@@ -217,45 +216,6 @@ func (majSoul *MajSoul) LookupGateway(ctx context.Context, serverAddressList []*
 
 	majSoul.Request = nil
 	return fmt.Errorf("no server")
-}
-
-func (majSoul *MajSoul) heatbeat() {
-	// Gateway 心跳包 5 秒一次
-	t5 := time.NewTicker(time.Second * 5)
-	// Game 心跳包 2 秒一次
-	t2 := time.NewTicker(time.Second * 2)
-	var err error
-	for {
-		select {
-		case <-t5.C:
-			if majSoul.fastTestClientConn != nil {
-				continue
-			}
-			if majSoul.lobbyClientConn == nil || majSoul.LobbyClient == nil {
-				continue
-			}
-			{
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-				defer cancel()
-				_, err = majSoul.LobbyClient.Heatbeat(ctx, &message.ReqHeatBeat{})
-				if err != nil {
-					logger.Panic("gateway heatbeat error", zap.Error(err))
-				}
-			}
-		case <-t2.C:
-			if majSoul.fastTestClientConn == nil || majSoul.FastTestClient == nil {
-				continue
-			}
-			{
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-				defer cancel()
-				_, err = majSoul.FastTestClient.CheckNetworkDelay(ctx, &message.ReqCommon{})
-				if err != nil {
-					logger.Panic("game checkNetworkDelay error", zap.Error(err))
-				}
-			}
-		}
-	}
 }
 
 // Version represents the version information for the client.
@@ -445,6 +405,7 @@ func (majSoul *MajSoul) Login(ctx context.Context, account, password string) (*m
 		Type:                t,
 		Version:             0,
 		ClientVersionString: majSoul.Version.Web(),
+		Tag:                 "cn",
 	}
 	resLogin, err := majSoul.LobbyClient.Login(ctx, reqLogin)
 	if err != nil {

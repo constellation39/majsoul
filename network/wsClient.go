@@ -36,6 +36,7 @@ type WsClient struct {
 	requestResponseMap sync.Map // map[uint8]*reply
 	notify             chan *message.Wrapper
 	ReconnectHandler   func()
+	isConnected        uint32
 }
 
 // NewWsClient creates a new WebSocket client with the specified connection address and dial options.
@@ -48,7 +49,20 @@ func NewWsClient(connAddress string, dialOptions websocket.DialOptions) *WsClien
 		requestResponseMap: sync.Map{},
 		notify:             make(chan *message.Wrapper, 64),
 		ReconnectHandler:   nil,
+		isConnected:        0,
 	}
+}
+
+func (client *WsClient) setIsConnected(connected bool) {
+	var newVal uint32
+	if connected {
+		newVal = 1
+	}
+	atomic.StoreUint32(&client.isConnected, newVal)
+}
+
+func (client *WsClient) getIsConnected() bool {
+	return atomic.LoadUint32(&client.isConnected) == 1
 }
 
 // Connect establishes a connection to the WebSocket server. It returns an error if the connection cannot be established.
@@ -65,6 +79,7 @@ func (client *WsClient) Connect(ctx context.Context) error {
 	}
 	conn.SetReadLimit(1048576)
 	client.conn = conn
+	client.setIsConnected(true)
 
 	go client.readLoop()
 	return nil
@@ -77,6 +92,10 @@ func (client *WsClient) Receive() <-chan *message.Wrapper {
 
 // Close closes the WebSocket connection. It returns an error if the connection cannot be closed properly.
 func (client *WsClient) Close() error {
+	if !client.getIsConnected() {
+		return fmt.Errorf("majsoul ws client is not connected")
+	}
+
 	if client.conn != nil {
 		if err := client.conn.Close(websocket.StatusNormalClosure, ""); err != nil {
 			return fmt.Errorf("error while closing websocket connection: %v", err)
@@ -85,6 +104,7 @@ func (client *WsClient) Close() error {
 	client.conn = nil
 	client.messageIndex = 0
 	client.requestResponseMap = sync.Map{}
+	client.setIsConnected(false)
 	return nil
 }
 
@@ -100,6 +120,7 @@ func (client *WsClient) readLoop() {
 			msgType, payload, err = client.conn.Read(ctx)
 		}
 		if err != nil {
+			client.setIsConnected(false)
 			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 				break
 			}
@@ -200,6 +221,10 @@ func (client *WsClient) Invoke(ctx context.Context, method string, in interface{
 
 // sendMsg sends a message to the WebSocket server. It returns an error if the message cannot be sent.
 func (client *WsClient) sendMsg(ctx context.Context, api string, in proto.Message) (_ *reply, err error) {
+	if !client.getIsConnected() {
+		return nil, websocket.CloseError{Code: websocket.StatusNoStatusRcvd}
+	}
+
 	var body []byte
 
 	body, err = proto.Marshal(in)
